@@ -29,16 +29,26 @@ string read_file(string filename);
 string getDeclAsString(Decl *, Rewriter);
 string getStmtAsString(Stmt *, Rewriter);
 
-static struct TestFunction
+enum class TestedValueType 
+{ 
+  functionCall, 
+  variable 
+};
+
+static struct TestedValue
 {
+  TestedValueType type;
   string name;
-  int resultArg; // set to -1 if the user is interested in the return result
-} TestFunction;
+  int resultArg; // set to -1 if the user is interested in the return result or type is variable
+} TestedValue;
 
 static struct declaration
 {
   string type;
   string name;
+  bool isArray;
+  bool isPointer;
+  int length; // set to -1 if not array
 } declaration;
 
 static map<string, string> functionToHeaderFile = 

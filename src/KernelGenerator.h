@@ -24,6 +24,6 @@
 using namespace std;
 using namespace clang::tooling;
 
-void generateKernel(ClangTool *, string, map<int, string>, list<string>, list<struct declaration>, struct TestFunction);
+void generateKernel(ClangTool *, string, map<int, string>, list<string>, list<struct declaration>, struct TestedValue);
 
 #endif

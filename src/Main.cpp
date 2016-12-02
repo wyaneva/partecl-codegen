@@ -39,7 +39,7 @@ static llvm::cl::OptionCategory MscToolCategory("kernel-gen options");
 static llvm::cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
 
 //private function declarations
-void generateStructs(string, string, map<int, string>&, list<string>&, struct TestFunction&, list<struct declaration>&, list<struct declaration>&); 
+void generateStructs(string, string, map<int, string>&, list<string>&, struct TestedValue&, list<struct declaration>&, list<struct declaration>&); 
 void generatePopulateInputs(string, list<struct declaration>, list<string>);
 
 int main(int argc, const char **argv)
@@ -50,7 +50,7 @@ int main(int argc, const char **argv)
     return 0;
   }
 
-  struct TestFunction functionToTest;
+  struct TestedValue testedValue;
   map<int, string> argvIdxToInput;
   list<string> stdinInputs;
   list<struct declaration> inputDeclarations;
@@ -59,13 +59,13 @@ int main(int argc, const char **argv)
   //TODO: the testing params come after '--'
   string configFilename = argv[3];
   string outputDirectory = argv[4];
-  generateStructs(configFilename, outputDirectory, argvIdxToInput, stdinInputs, functionToTest, inputDeclarations, resultDeclarations);
+  generateStructs(configFilename, outputDirectory, argvIdxToInput, stdinInputs, testedValue, inputDeclarations, resultDeclarations);
   generatePopulateInputs(outputDirectory, inputDeclarations, stdinInputs);
 
   CommonOptionsParser OptionsParser(argc, argv, MscToolCategory);
   ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
   
-  generateKernel(&Tool, outputDirectory, argvIdxToInput, stdinInputs, resultDeclarations, functionToTest);
+  generateKernel(&Tool, outputDirectory, argvIdxToInput, stdinInputs, resultDeclarations, testedValue);
 }
 
 
@@ -75,7 +75,7 @@ void generateStructs(
     string outputDirectory, 
     map<int, string>& argvIdxToInput, 
     list<string>& stdinInputs,
-    struct TestFunction& functionToTest,
+    struct TestedValue& testedValue,
     list<struct declaration>& inputDeclarations,
     list<struct declaration>& resultDeclarations)
 {
@@ -95,15 +95,16 @@ void generateStructs(
     iss >> annot;
 
     //find out the name of the tested function
-    if(annot == "function-name:")
+    if(annot == "function:")
     {
-      iss >> functionToTest.name;
+      testedValue.type = TestedValueType::functionCall;
+      iss >> testedValue.name;
 
       string returnType;
       iss >> returnType;
       if(returnType == "RET")
       {
-        functionToTest.resultArg = -1;
+        testedValue.resultArg = -1;
       }
       else if(returnType == "ARG")
       {
@@ -116,7 +117,7 @@ void generateStructs(
           return;
         }
 
-        functionToTest.resultArg = argNum;
+        testedValue.resultArg = argNum;
       }
       else
       {

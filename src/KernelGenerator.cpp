@@ -75,7 +75,7 @@ map<const CallExpr *, list<string>> funcCallToAddedArgs;
 //a list of include files to add
 list<string> includesToAdd;
 
-static struct TestFunction functionToTest;
+static struct TestedValue testedValue;
 
 void replaceParam(
     const ParmVarDecl *paramDecl, 
@@ -270,7 +270,7 @@ bool containsRefToStdin(const FunctionDecl *decl)
 
 bool isResultPrintedChatByChar()
 {
-  return functionToTest.name == "fputc";
+  return testedValue.name == "fputc";
 }
 
 bool isStdinUsed()
@@ -530,7 +530,7 @@ public:
   virtual void run(const MatchFinder::MatchResult &Result)
   {
     const CallExpr *resultCall = Result.Nodes.getNodeAs<CallExpr>("resultCall");
-    if(resultCall->getDirectCallee()->getNameAsString() == functionToTest.name)
+    if(resultCall->getDirectCallee()->getNameAsString() == testedValue.name)
     {
       const FunctionDecl *resultCaller = Result.Nodes.getNodeAs<FunctionDecl>("resultCaller");
       if(!isMain(resultCaller) && !containsRefToResult(resultCaller))
@@ -1097,13 +1097,13 @@ public:
 
     //find out if this is a call to the tested function
     auto name = expr -> getDirectCallee() -> getNameAsString();
-    if(name != functionToTest.name)
+    if(name != testedValue.name)
       return;
       
     auto resultDecl = results.front();
     string resultString;
 
-    if(functionToTest.name == "fputc")
+    if(testedValue.name == "fputc")
     {
       if(resultDecl.type != "char*" && resultDecl.type != "char *")
       {
@@ -1123,14 +1123,14 @@ public:
       resultString.append("(*res_count_gen)++");
       resultString.append(";\n");
     }
-    else if(functionToTest.name == "fputs")
+    else if(testedValue.name == "fputs")
     {
     }
     //TODO: add case for printf
     else
     {
       //user defined function
-      if(functionToTest.resultArg <= 0)
+      if(testedValue.resultArg <= 0)
       {
         //we are interested in the return result
         string callString;
@@ -1161,7 +1161,7 @@ public:
       {
         //we are interested in an argument of the function
         //find out which the argument is
-        auto argument = expr->getArg(functionToTest.resultArg-1);
+        auto argument = expr->getArg(testedValue.resultArg-1);
         string stringArg;
         llvm::raw_string_ostream arg(stringArg);
         argument->printPretty(arg, 0, printingPolicy);
@@ -1407,13 +1407,13 @@ void generateKernel(
     map<int, string> _argvIdxToInput,
     list<string> _stdinInputs,
     list<struct declaration> _results,
-    struct TestFunction _functionToTest)
+    struct TestedValue _testedValue)
 {
   llvm::outs() << "Generating kernel code... ";
   
   //set global scope variables
   testClFilename = outputDirectory + "/" + "test.cl";
-  functionToTest = _functionToTest;
+  testedValue = _testedValue;
   argvIdxToInput = _argvIdxToInput;
   stdinInputs = _stdinInputs;
   results = _results;
