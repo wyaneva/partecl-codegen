@@ -14,13 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef KERNEL_GENERATOR_H
-#define KERNEL_GENERATOR_H
+#ifndef CONFIG_PARSER_H
+#define CONFIG_PARSER_H
 
 #include <string>
-#include "clang/Tooling/Tooling.h"
 #include "Utils.h"
 
-void generateKernel(clang::tooling::ClangTool *, std::string, std::map<int, std::string>, std::list<std::string>, std::list<struct Declaration>, struct TestedValue);
+int parseConfig(
+    const std::string&,
+    struct TestedValue&,
+    std::map<int, std::string>&,
+    std::list<std::string>&,
+    std::list<struct Declaration>&,
+    std::list<struct Declaration>&);
 
 #endif

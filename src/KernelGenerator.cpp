@@ -31,6 +31,7 @@
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/Refactoring.h"
 #include "clang/Tooling/Tooling.h"
+#include "Constants.h"
 #include "Utils.h"
 
 #define INPUT  1
@@ -49,7 +50,7 @@ string testClFilename;
 map<int, string> argvIdxToInput;
 map<const Expr *, bool> argvIdxToIsReplaced;
 list<string> stdinInputs;
-list<struct declaration> results;
+list<struct Declaration> results;
 
 //a list of all the global vars
 list<const VarDecl *> globalVars;
@@ -1348,7 +1349,7 @@ public:
     //include for 'structs.h' and special headers
     string rewriteBuffer = std::string(buffer->begin(), buffer->end());
     string source = "#include \"";
-    source.append(STRUCTS_FILENAME);
+    source.append(filename_constants::STRUCTS_FILENAME);
     source.append("\"\n");
     for(auto inc = includesToAdd.begin(); inc != includesToAdd.end(); inc++)
     {
@@ -1406,7 +1407,7 @@ void generateKernel(
     string outputDirectory,
     map<int, string> _argvIdxToInput,
     list<string> _stdinInputs,
-    list<struct declaration> _results,
+    list<struct Declaration> _results,
     struct TestedValue _testedValue)
 {
   llvm::outs() << "Generating kernel code... ";

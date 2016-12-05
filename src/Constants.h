@@ -14,13 +14,36 @@
  * limitations under the License.
  */
 
-#ifndef KERNEL_GENERATOR_H
-#define KERNEL_GENERATOR_H
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
 
 #include <string>
-#include "clang/Tooling/Tooling.h"
-#include "Utils.h"
 
-void generateKernel(clang::tooling::ClangTool *, std::string, std::map<int, std::string>, std::list<std::string>, std::list<struct Declaration>, struct TestedValue);
+//filenames
+namespace filename_constants
+{
+  const std::string STRUCTS_FILENAME = "structs.h";
+  const std::string CPU_GEN_FILENAME = "cpu-gen";
+}
 
-#endif
+//constants used in the configuration file
+namespace config_constants 
+{
+  const std::string FUNCTION = "function:";
+  const std::string VARIABLE = "variable:";
+  const std::string RET = "RET";
+  const std::string ARG = "ARG";
+  const std::string INPUT = "input:";
+  const std::string STDIN = "stdin:";
+  const std::string RESULT = "result:";
+}
+
+//status
+namespace status_constants
+{
+  const int FAIL = 0;
+  const int SUCCESS = 1;
+}
+
+#endif 
+

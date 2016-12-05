@@ -1,5 +1,0 @@
-1 5 < inputs/t1.inp
-2 6 < inputs/t2.inp
-3 10 < inputs/t3.inp
-4 2 < inputs/t4.inp
-5 4 < inputs/t5.inp

@@ -26,145 +26,68 @@
 #include "clang/Tooling/CommonOptionsParser.h"
 #include "clang/Tooling/Tooling.h"
 #include "llvm/Support/CommandLine.h"
+#include "ConfigParser.h"
+#include "Constants.h"
 #include "KernelGenerator.h"
 #include "Utils.h"
-#define CPU_GEN_FILENAME "cpu-gen"
 
-using namespace clang;
-using namespace clang::tooling;
-using namespace clang::ast_matchers;
-using namespace std;
+//using namespace clang;
+//using namespace clang::tooling;
+//using namespace clang::ast_matchers;
 
 static llvm::cl::OptionCategory MscToolCategory("kernel-gen options");
-static llvm::cl::extrahelp CommonHelp(CommonOptionsParser::HelpMessage);
+static llvm::cl::extrahelp CommonHelp(clang::tooling::CommonOptionsParser::HelpMessage);
 
 //private function declarations
-void generateStructs(string, string, map<int, string>&, list<string>&, struct TestedValue&, list<struct declaration>&, list<struct declaration>&); 
-void generatePopulateInputs(string, list<struct declaration>, list<string>);
+void generateStructs(const std::string&, const std::list<std::string>&, const std::list<struct Declaration>&, const std::list<struct Declaration>&); 
+void generateCpuGen(const std::string&, const std::list<struct Declaration>&, const std::list<std::string>&);
 
 int main(int argc, const char **argv)
 {
   if(argc <= 4)
   {
-    cout << "Correct usage: \n ./partecl-codegen [source filename] -- [config filename] [output directory] \n Exiting execution without generating anything. \n";
+    llvm::outs() << "Correct usage: \n ./partecl-codegen [source filename] -- [config filename] [output directory] \n Exiting execution without generating anything. \n";
     return 0;
   }
 
   struct TestedValue testedValue;
-  map<int, string> argvIdxToInput;
-  list<string> stdinInputs;
-  list<struct declaration> inputDeclarations;
-  list<struct declaration> resultDeclarations;
+  std::map<int, std::string> argvIdxToInput;
+  std::list<std::string> stdinInputs;
+  std::list<struct Declaration> inputDeclarations;
+  std::list<struct Declaration> resultDeclarations;
 
   //TODO: the testing params come after '--'
-  string configFilename = argv[3];
-  string outputDirectory = argv[4];
-  generateStructs(configFilename, outputDirectory, argvIdxToInput, stdinInputs, testedValue, inputDeclarations, resultDeclarations);
-  generatePopulateInputs(outputDirectory, inputDeclarations, stdinInputs);
+  std::string configFilename = argv[3];
+  std::string outputDirectory = argv[4];
 
-  CommonOptionsParser OptionsParser(argc, argv, MscToolCategory);
-  ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
-  
+  //parse the configuration file
+  if(parseConfig(configFilename, testedValue, argvIdxToInput, stdinInputs, inputDeclarations, resultDeclarations) == status_constants::FAIL)
+  {
+    llvm::outs() << "Failed to parse the configuration file " << configFilename <<". \nTERMINATING!\n";
+    return status_constants::FAIL;
+  }
+
+  //generate the struct file
+  generateStructs(outputDirectory, stdinInputs, inputDeclarations, resultDeclarations);
+  //generate CPU code
+  generateCpuGen(outputDirectory, inputDeclarations, stdinInputs);
+
+  //generate kernel
+  clang::tooling::CommonOptionsParser OptionsParser(argc, argv, MscToolCategory);
+  clang::tooling::ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
   generateKernel(&Tool, outputDirectory, argvIdxToInput, stdinInputs, resultDeclarations, testedValue);
 }
 
-
-//private methods
 void generateStructs(
-    string configFilename, 
-    string outputDirectory, 
-    map<int, string>& argvIdxToInput, 
-    list<string>& stdinInputs,
-    struct TestedValue& testedValue,
-    list<struct declaration>& inputDeclarations,
-    list<struct declaration>& resultDeclarations)
+    const std::string& outputDirectory, 
+    const std::list<std::string>& stdinInputs,
+    const std::list<struct Declaration>& inputDeclarations,
+    const std::list<struct Declaration>& resultDeclarations)
 {
   llvm::outs() << "Generating memory buffer structs... ";
 
-  ifstream infile(configFilename);
-  string line;
-
-  int inputDeclsCount = 0;
-  int resultDeclsCount = 0;
-  while(getline(infile, line))
-  {
-    istringstream iss(line);
-    string annot, type, name;
-    int argvIdx;
-
-    iss >> annot;
-
-    //find out the name of the tested function
-    if(annot == "function:")
-    {
-      testedValue.type = TestedValueType::functionCall;
-      iss >> testedValue.name;
-
-      string returnType;
-      iss >> returnType;
-      if(returnType == "RET")
-      {
-        testedValue.resultArg = -1;
-      }
-      else if(returnType == "ARG")
-      {
-        string argNumStr;
-        iss >> argNumStr;
-        int argNum = stoi(argNumStr);
-        if(argNum < 1)
-        {
-          llvm::outs() << argNum << " is not a valid argument number config file line:\n" << line << "\nTerminating!\n";
-          return;
-        }
-
-        testedValue.resultArg = argNum;
-      }
-      else
-      {
-        llvm::outs() << returnType << " is not a valid result in config file line:\n" << line << "\nPlease enter RET or ARG.\nTerminating!\n";
-        return;
-      }
-    }
-
-    //find the inputs
-    if(annot == "input:")
-    {
-      iss >> type >> name >> argvIdx;
-
-      struct declaration input;
-      input.type = type;
-      input.name = name;
-      inputDeclarations.push_back(input);
-      inputDeclsCount++;
-
-      //add to maps
-      argvIdxToInput[argvIdx] = name;
-    }
-
-    if(annot == "stdin:")
-    {
-      iss >> type >> name;
-
-      //add to list of inputs
-      stdinInputs.push_back(name);
-    }
-
-    //find the results
-    if(annot == "result:")
-    {
-      iss  >> type >> name; 
-
-      struct declaration decl;
-      decl.name = name;
-      decl.type = type;
-      resultDeclarations.push_back(decl);
-      resultDeclsCount++;
-    }
-  }
-
-  //create the structs file
-  string structsFilename = outputDirectory + '/' + STRUCTS_FILENAME;
-  ofstream strFile;
+  std::string structsFilename = outputDirectory + '/' + filename_constants::STRUCTS_FILENAME;
+  std::ofstream strFile;
   strFile.open(structsFilename);
  
   //write input
@@ -174,14 +97,14 @@ void generateStructs(
   strFile << "{\n";
   strFile << "  int test_case_num;\n";
   strFile << "  int argc;\n";
-  for(int i = 0; i < inputDeclsCount; i++)
+
+  for(auto it = inputDeclarations.begin(); it != inputDeclarations.end(); it++)
   {
-    struct declaration currentInput = inputDeclarations.front();
-    inputDeclarations.pop_front();
+    struct Declaration currentInput = *it;
     //TODO: Decide on an intelligent way to determine the size of the static decls
-    string type = currentInput.type;
+    std::string type = currentInput.type;
     auto starChar = type.find("*");
-    if(starChar != string::npos)
+    if(starChar != std::string::npos)
     {
       type.erase(starChar);
       strFile << "  " << type << " " << currentInput.name << "[500];\n";
@@ -190,16 +113,12 @@ void generateStructs(
     {
       strFile << "  " << type << " " << currentInput.name << ";\n";
     }
-    inputDeclarations.push_back(currentInput);
   }
 
-  int numStdins = stdinInputs.size();
-  for(int i = 0; i < numStdins; i++)
+  for(auto it = stdinInputs.begin(); it != stdinInputs.end(); it++)
   {
-    string stdinArg = stdinInputs.front();
-    stdinInputs.pop_front();
+    auto stdinArg = *it;
     strFile << "  " << "char " << " " << stdinArg << "[500];\n";
-    stdinInputs.push_back(stdinArg);
   }
   strFile << "} input;\n\n";
 
@@ -207,13 +126,12 @@ void generateStructs(
   strFile << "typedef struct result\n";
   strFile << "{\n";
   strFile << "  int test_case_num;\n";
-  for(int i = 0; i < resultDeclsCount; i++)
+  for(auto it = resultDeclarations.begin(); it != resultDeclarations.end(); it++)
   {
-    auto resultDecl = resultDeclarations.front();
-    resultDeclarations.pop_front();
-    string type = resultDecl.type;
+    auto resultDecl = *it;
+    std::string type = resultDecl.type;
     auto starChar = type.find("*");
-    if(starChar != string::npos)
+    if(starChar != std::string::npos)
     {
       type.erase(starChar);
       strFile << "  " << type << " " << resultDecl.name <<"[500];\n";
@@ -222,8 +140,6 @@ void generateStructs(
     {
       strFile << "  " << type << " " << resultDecl.name <<";\n";
     }
-
-    resultDeclarations.push_back(resultDecl);
   }
   strFile << "} result;\n\n";
 
@@ -233,30 +149,32 @@ void generateStructs(
   llvm::outs() << "DONE!\n";
 }
 
-void generatePopulateInputs(string outputDirectory, list<struct declaration> inputs, list<string> stdinInputs)
+void generateCpuGen(const std::string& outputDirectory, const std::list<struct Declaration>& inputs, const std::list<std::string>& stdinInputs)
 {
   llvm::outs() << "Generating CPU code... ";
 
   //generate header file
-  ofstream headerFile;
-  string headerFilename = outputDirectory + "/" + CPU_GEN_FILENAME + ".h";
+  std::ofstream headerFile;
+  std::string headerFilename = outputDirectory + "/" + filename_constants::CPU_GEN_FILENAME + ".h";
   headerFile.open(headerFilename);
 
   headerFile << "#ifndef CPU_GEN_H\n";
   headerFile << "#define CPU_GEN_H\n";
   headerFile << "#include \"structs.h\"\n\n";
   headerFile << "void populate_inputs(struct input*, int, char**, int, char**);\n\n";
+  headerFile << "void compare_results(struct result*, struct result*, int);\n\n";
   headerFile << "#endif\n";
 
   headerFile.close();
 
   //generate source file
-  ofstream strFile;
-  string sourceFilename = outputDirectory + "/" + CPU_GEN_FILENAME + ".c";
+  std::ofstream strFile;
+  std::string sourceFilename = outputDirectory + "/" + filename_constants::CPU_GEN_FILENAME + ".c";
   strFile.open(sourceFilename);
 
   strFile << "#include <stdlib.h>\n";
   strFile << "#include <string.h>\n";
+  strFile << "#include <stdio.h>\n";
   strFile << "#include \"cpu-gen.h\"\n\n";
   strFile << "void populate_inputs(struct input *input, int argc, char** args, int stdinc, char** stdins)\n";
   strFile << "{\n";
@@ -264,11 +182,12 @@ void generatePopulateInputs(string outputDirectory, list<struct declaration> inp
   strFile << "  (*input).test_case_num = atoi(args[0]);\n";
   strFile << "  (*input).argc = argc;\n";
 
-  int numInputs = inputs.size();
-  for(int i = 0; i < numInputs; i++)
+  //int numInputs = inputs.size();
+  int i = -1;
+  for(auto it = inputs.begin(); it != inputs.end(); it++)
   {
-    struct declaration currentInput = inputs.front();
-    inputs.pop_front();
+    auto currentInput = *it;
+    i++;
 
     strFile << "  if(argc >= " << i+2 << ")\n";
     //value
@@ -291,15 +210,19 @@ void generatePopulateInputs(string outputDirectory, list<struct declaration> inp
     }
   }
 
-  int numStd = stdinInputs.size();
-  for(int i = 0; i < numStd; i++)
+  for(auto it = stdinInputs.begin(); it != stdinInputs.end(); it++)
   {
-    string stdinArg = stdinInputs.front();
-    stdinInputs.pop_front();
+    auto stdinArg = *it;
     strFile << "  if(stdinc >= " << i+1 << ")\n";
     strFile << "    strcpy((*input)." << stdinArg << ", stdins[" << i << "]);\n";
   }
 
+  strFile << "}\n";
+
+
+  strFile << "void compare_results(struct result* results, struct result* exp_results, int num_test_cases)\n";
+  strFile << "{\n";
+  strFile << "  //TODO:\n";
   strFile << "}\n";
 
   strFile.close();

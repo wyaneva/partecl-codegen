@@ -20,14 +20,10 @@
 #include<string>
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/Tooling.h"
-#define STRUCTS_FILENAME "structs.h"
 
-using namespace std;
-using namespace clang;
-
-string read_file(string filename);
-string getDeclAsString(Decl *, Rewriter);
-string getStmtAsString(Stmt *, Rewriter);
+std::string read_file(std::string filename);
+std::string getDeclAsString(clang::Decl *, clang::Rewriter);
+std::string getStmtAsString(clang::Stmt *, clang::Rewriter);
 
 enum class TestedValueType 
 { 
@@ -37,21 +33,20 @@ enum class TestedValueType
 
 static struct TestedValue
 {
+  std::string name;
   TestedValueType type;
-  string name;
   int resultArg; // set to -1 if the user is interested in the return result or type is variable
 } TestedValue;
 
-static struct declaration
+static struct Declaration
 {
-  string type;
-  string name;
+  std::string type;
+  std::string name;
   bool isArray;
-  bool isPointer;
-  int length; // set to -1 if not array
-} declaration;
+  int size; // set to -1 if not array
+} Declaration;
 
-static map<string, string> functionToHeaderFile = 
+static std::map<std::string, std::string> functionToHeaderFile = 
 {
   {"isalnum", "cl-ctype.h"},
   {"isalpha", "cl-ctype.h"},
