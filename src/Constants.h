@@ -17,32 +17,38 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
-#include <string>
+//constants used in the configuration file
+namespace config_constants 
+{
+  static const char* FUNCTION = "function:";
+  static const char* VARIABLE = "variable:";
+  static const char* RET = "RET";
+  static const char* ARG = "ARG";
+  static const char* INPUT = "input:";
+  static const char* STDIN = "stdin:";
+  static const char* RESULT = "result:";
+}
 
 //filenames
 namespace filename_constants
 {
-  const std::string STRUCTS_FILENAME = "structs.h";
-  const std::string CPU_GEN_FILENAME = "cpu-gen";
-}
-
-//constants used in the configuration file
-namespace config_constants 
-{
-  const std::string FUNCTION = "function:";
-  const std::string VARIABLE = "variable:";
-  const std::string RET = "RET";
-  const std::string ARG = "ARG";
-  const std::string INPUT = "input:";
-  const std::string STDIN = "stdin:";
-  const std::string RESULT = "result:";
+  static const char* STRUCTS_FILENAME = "structs.h";
+  static const char* CPU_GEN_FILENAME = "cpu-gen";
 }
 
 //status
 namespace status_constants
 {
-  const int FAIL = 0;
-  const int SUCCESS = 1;
+  static const int FAIL = 0;
+  static const int SUCCESS = 1;
+}
+
+namespace structs_constants
+{
+  static const char* ARGC = "argc";
+  static const char* INPUT_S = "input";
+  static const char* RESULT_S = "result";
+  static const char* TEST_CASE_NUM = "test_case_num";
 }
 
 #endif 

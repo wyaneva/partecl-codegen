@@ -28,19 +28,16 @@
 #include "llvm/Support/CommandLine.h"
 #include "ConfigParser.h"
 #include "Constants.h"
+#include "CpuCodeGenerator.h"
 #include "KernelGenerator.h"
 #include "Utils.h"
-
-//using namespace clang;
-//using namespace clang::tooling;
-//using namespace clang::ast_matchers;
 
 static llvm::cl::OptionCategory MscToolCategory("kernel-gen options");
 static llvm::cl::extrahelp CommonHelp(clang::tooling::CommonOptionsParser::HelpMessage);
 
 //private function declarations
 void generateStructs(const std::string&, const std::list<std::string>&, const std::list<struct Declaration>&, const std::list<struct Declaration>&); 
-void generateCpuGen(const std::string&, const std::list<struct Declaration>&, const std::list<std::string>&);
+void generateCpuGen(const std::string&, const std::list<struct Declaration>&, const std::list<struct Declaration>&, const std::list<std::string>&);
 
 int main(int argc, const char **argv)
 {
@@ -70,7 +67,7 @@ int main(int argc, const char **argv)
   //generate the struct file
   generateStructs(outputDirectory, stdinInputs, inputDeclarations, resultDeclarations);
   //generate CPU code
-  generateCpuGen(outputDirectory, inputDeclarations, stdinInputs);
+  generateCpuGen(outputDirectory, inputDeclarations, resultDeclarations, stdinInputs);
 
   //generate kernel
   clang::tooling::CommonOptionsParser OptionsParser(argc, argv, MscToolCategory);
@@ -93,14 +90,13 @@ void generateStructs(
   //write input
   strFile << "#ifndef STRUCTS_H\n";
   strFile << "#define STRUCTS_H\n\n";
-  strFile << "typedef struct input\n";
+  strFile << "typedef struct " << structs_constants::INPUT_S <<"\n";
   strFile << "{\n";
-  strFile << "  int test_case_num;\n";
-  strFile << "  int argc;\n";
+  strFile << "  int " << structs_constants::TEST_CASE_NUM << ";\n";
+  strFile << "  int " << structs_constants::ARGC <<";\n";
 
-  for(auto it = inputDeclarations.begin(); it != inputDeclarations.end(); it++)
+  for(auto& currentInput: inputDeclarations)
   {
-    struct Declaration currentInput = *it;
     //TODO: Decide on an intelligent way to determine the size of the static decls
     std::string type = currentInput.type;
     auto starChar = type.find("*");
@@ -115,20 +111,18 @@ void generateStructs(
     }
   }
 
-  for(auto it = stdinInputs.begin(); it != stdinInputs.end(); it++)
+  for(auto& stdinArg: stdinInputs)
   {
-    auto stdinArg = *it;
     strFile << "  " << "char " << " " << stdinArg << "[500];\n";
   }
-  strFile << "} input;\n\n";
+  strFile << "} " << structs_constants::INPUT_S << ";\n\n";
 
   //write result
-  strFile << "typedef struct result\n";
+  strFile << "typedef struct " << structs_constants::RESULT_S << "\n";
   strFile << "{\n";
   strFile << "  int test_case_num;\n";
-  for(auto it = resultDeclarations.begin(); it != resultDeclarations.end(); it++)
+  for(auto& resultDecl: resultDeclarations)
   {
-    auto resultDecl = *it;
     std::string type = resultDecl.type;
     auto starChar = type.find("*");
     if(starChar != std::string::npos)
@@ -141,7 +135,7 @@ void generateStructs(
       strFile << "  " << type << " " << resultDecl.name <<";\n";
     }
   }
-  strFile << "} result;\n\n";
+  strFile << "} " << structs_constants::RESULT_S <<";\n\n";
 
   strFile << "#endif\n";
   strFile.close();
@@ -149,7 +143,11 @@ void generateStructs(
   llvm::outs() << "DONE!\n";
 }
 
-void generateCpuGen(const std::string& outputDirectory, const std::list<struct Declaration>& inputs, const std::list<std::string>& stdinInputs)
+void generateCpuGen(
+    const std::string& outputDirectory, 
+    const std::list<struct Declaration>& inputs, 
+    const std::list<struct Declaration>& results, 
+    const std::list<std::string>& stdinInputs)
 {
   llvm::outs() << "Generating CPU code... ";
 
@@ -182,11 +180,9 @@ void generateCpuGen(const std::string& outputDirectory, const std::list<struct D
   strFile << "  (*input).test_case_num = atoi(args[0]);\n";
   strFile << "  (*input).argc = argc;\n";
 
-  //int numInputs = inputs.size();
   int i = -1;
-  for(auto it = inputs.begin(); it != inputs.end(); it++)
+  for(auto& currentInput: inputs)
   {
-    auto currentInput = *it;
     i++;
 
     strFile << "  if(argc >= " << i+2 << ")\n";
@@ -210,20 +206,15 @@ void generateCpuGen(const std::string& outputDirectory, const std::list<struct D
     }
   }
 
-  for(auto it = stdinInputs.begin(); it != stdinInputs.end(); it++)
+  for(auto& stdinArg: stdinInputs)
   {
-    auto stdinArg = *it;
     strFile << "  if(stdinc >= " << i+1 << ")\n";
     strFile << "    strcpy((*input)." << stdinArg << ", stdins[" << i << "]);\n";
   }
 
   strFile << "}\n";
 
-
-  strFile << "void compare_results(struct result* results, struct result* exp_results, int num_test_cases)\n";
-  strFile << "{\n";
-  strFile << "  //TODO:\n";
-  strFile << "}\n";
+  generateCompareResults(strFile, results);
 
   strFile.close();
 
