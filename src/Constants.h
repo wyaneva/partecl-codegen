@@ -17,6 +17,8 @@
 #ifndef CONSTANTS_H
 #define CONSTANTS_H
 
+#include <string>
+
 //constants used in the configuration file
 namespace config_constants 
 {
@@ -46,7 +48,8 @@ namespace status_constants
 namespace structs_constants
 {
   const char* const ARGC = "argc";
-  const char* const INPUT = "input";
+  const std::string INPUT = "input";
+  //const char* const INPUT = "input";
   const char* const RESULT = "result";
   const char* const TEST_CASE_NUM = "test_case_num";
 }

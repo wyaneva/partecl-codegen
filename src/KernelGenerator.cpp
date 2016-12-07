@@ -34,8 +34,8 @@
 #include "Constants.h"
 #include "Utils.h"
 
-#define INPUT  1
-#define RESULT 2
+#define INPUT_1  1
+#define RESULT_1 2
 
 using namespace clang;
 using namespace clang::tooling;
@@ -50,7 +50,7 @@ string testClFilename;
 map<int, string> argvIdxToInput;
 map<const Expr *, bool> argvIdxToIsReplaced;
 list<string> stdinInputs;
-list<struct Declaration> results;
+list<struct ResultDeclaration> results;
 
 //a list of all the global vars
 list<const VarDecl *> globalVars;
@@ -75,8 +75,6 @@ map<const CallExpr *, list<string>> funcCallToAddedArgs;
 
 //a list of include files to add
 list<string> includesToAdd;
-
-static struct TestedValue testedValue;
 
 void replaceParam(
     const ParmVarDecl *paramDecl, 
@@ -269,9 +267,9 @@ bool containsRefToStdin(const FunctionDecl *decl)
   return find(functionsWhichUseStdin.begin(), functionsWhichUseStdin.end(), decl) != functionsWhichUseStdin.end();
 }
 
-bool isResultPrintedChatByChar()
+bool isResultPrintedChatByChar(const struct ResultDeclaration& result)
 {
-  return testedValue.name == "fputc";
+  return result.testedValue.name == "fputc";
 }
 
 bool isStdinUsed()
@@ -334,12 +332,12 @@ void addInputAndResultsToFunctionDecl(
 
     switch(inputOrResult)
     {
-      case INPUT:
+      case INPUT_1:
         if(!containsRefToInput(callerDecl))
           functionsWhichUseTestInputs.push_back(callerDecl);
         break;
 
-      case RESULT:
+      case RESULT_1:
         if(!containsRefToResult(callerDecl))
           functionsWhichUseTestResults.push_back(callerDecl);
         break;
@@ -396,10 +394,10 @@ void findAllFunctionsWhichUseSpecialVars()
     }
 
     if(containsRefToInput(funcDecl))
-      addInputAndResultsToFunctionDecl(funcDecl, INPUT);
+      addInputAndResultsToFunctionDecl(funcDecl, INPUT_1);
 
     if(containsRefToResult(funcDecl))
-      addInputAndResultsToFunctionDecl(funcDecl, RESULT);
+      addInputAndResultsToFunctionDecl(funcDecl, RESULT_1);
 
     if(containsRefToStdin(funcDecl))
       addStdinToFunctionDecl(funcDecl);
@@ -531,11 +529,14 @@ public:
   virtual void run(const MatchFinder::MatchResult &Result)
   {
     const CallExpr *resultCall = Result.Nodes.getNodeAs<CallExpr>("resultCall");
-    if(resultCall->getDirectCallee()->getNameAsString() == testedValue.name)
+    for(auto& result: results)
     {
-      const FunctionDecl *resultCaller = Result.Nodes.getNodeAs<FunctionDecl>("resultCaller");
-      if(!isMain(resultCaller) && !containsRefToResult(resultCaller))
-        functionsWhichUseTestResults.push_back(resultCaller);
+      if(resultCall->getDirectCallee()->getNameAsString() == result.testedValue.name)
+      {
+        const FunctionDecl *resultCaller = Result.Nodes.getNodeAs<FunctionDecl>("resultCaller");
+        if(!isMain(resultCaller) && !containsRefToResult(resultCaller))
+          functionsWhichUseTestResults.push_back(resultCaller);
+      }
     }
   }
 };
@@ -638,13 +639,16 @@ public:
 
     //add variables at the beginning of body
     Stmt *body = decl->getBody();
-    SourceLocation bbLoc = body->getSourceRange().getBegin().getLocWithOffset(1);
+    auto bbLoc = body->getSourceRange().getBegin().getLocWithOffset(1);
+    auto eLoc = body->getSourceRange().getEnd();
+ 
     string idxLine = "\n  int idx = get_global_id(0);\n";
     string inputLine = "  struct input input_gen = inputs[idx];\n";
     string resultLine1 = "  __global struct result *result_gen = &results[idx];\n";
     string argcLine = "  int argc = input_gen.argc;\n";
     string resultLine2 = "  (*result_gen).test_case_num = input_gen.test_case_num;\n";
     string insertion = "";
+    string eInsertion = "";
     insertion.append(idxLine);
     insertion.append(inputLine);
     insertion.append(resultLine1);
@@ -663,30 +667,63 @@ public:
         insertion.append(";\n");
     }
 
-    //add declaration for counter in case result is printed char by char
-    if(isResultPrintedChatByChar())
+    //TODO: Handle multiple results more gracefully for fputc
+    for(auto& result: results)
     {
-      insertion.append("  int res_count_gen;\n");
-      insertion.append("  res_count_gen = 0;\n");
+      //add declaration for counter in case there is a result which is printed char by char
+      if(isResultPrintedChatByChar(result))
+      {
+        insertion.append("  int res_count_gen;\n");
+        insertion.append("  res_count_gen = 0;\n");
+      }
+
+      //add declaration for counter in case stdin stream is used
+      if(isStdinUsed())
+      {
+        insertion.append("  int stdin_count_gen;\n");
+        insertion.append("  stdin_count_gen = 0;\n");
+      }
+
+      //character termination in case result is printed char by char
+      if(isResultPrintedChatByChar(result))
+      {
+        eInsertion.append("  *((*result_gen).");
+        eInsertion.append(result.declaration.name);
+        eInsertion.append(" + res_count_gen) = \'\\0\';\n");
+      }
+      
+      //when the tested value is a variable, add an assignment to the result struct
+      if(result.testedValue.type == TestedValueType::variable)
+      {
+        if(result.declaration.isArray)
+        {
+          eInsertion.append("  for(int i = 0; i < ");
+          eInsertion.append(to_string(result.declaration.size));
+          eInsertion.append("; i++)\n");
+          eInsertion.append("  {\n");
+          eInsertion.append("    (*result_gen).");
+          eInsertion.append(result.declaration.name);
+          eInsertion.append("[i] = ");
+          eInsertion.append(result.testedValue.name);
+          eInsertion.append("[i];\n");
+          eInsertion.append("  }\n");
+        }
+        else
+        {
+          eInsertion.append("  (*result_gen).");
+          eInsertion.append(result.declaration.name);
+          eInsertion.append(" = ");
+          eInsertion.append(result.testedValue.name);
+          eInsertion.append(";\n");
+        }
+      }
     }
 
-    //add declaration for counter in case stdin stream is used
-    if(isStdinUsed())
-    {
-      insertion.append("  int stdin_count_gen;\n");
-      insertion.append("  stdin_count_gen = 0;\n");
-    }
-
+    //insert in the beginning
     rewriter.InsertText(bbLoc, insertion); 
 
-    //character termination in case result is printed char by char
-    if(isResultPrintedChatByChar())
-    {
-      auto eLoc = body->getSourceRange().getEnd();
-      string eInsertion;
-      eInsertion.append("  *((*result_gen).result + res_count_gen) = \'\\0\';\n");
-      rewriter.InsertText(eLoc, eInsertion); 
-    }
+    //insert in the end
+    rewriter.InsertText(eLoc, eInsertion); 
   }
 };
 
@@ -945,7 +982,9 @@ public:
     {
       //add the input to the function's argument list
       string newParam;
-      newParam.append("struct input *input_gen");
+      newParam.append("struct ");
+      newParam.append(structs_constants::INPUT);
+      newParam.append(" *input_gen");
       addNewParam(decl, newParam, &rewriter);
     }
 
@@ -953,15 +992,21 @@ public:
     {
       //add the result to the function's argument list
       string newParam;
-      newParam.append("__global struct result *result_gen");
+      newParam.append("__global struct"); 
+      newParam.append(structs_constants::RESULT);
+      newParam.append(" *result_gen");
       addNewParam(decl, newParam, &rewriter);
 
       //if the result is printed char by char, add a pointer to the counter
-      if(isResultPrintedChatByChar())
+      for(auto& result: results)
       {
-        string newParam2;
-        newParam2.append("int *res_count_gen");
-        addNewParam(decl, newParam2, &rewriter);
+        if(isResultPrintedChatByChar(result))
+        {
+          string newParam2;
+          newParam2.append("int *res_count_gen");
+          addNewParam(decl, newParam2, &rewriter);
+        break;
+        }
       }
     }
   }
@@ -1008,15 +1053,18 @@ public:
       addNewArgument(call, newArg, &rewriter);
 
       //if the result is printed char by char, add a pointer to the counter
-      if(isResultPrintedChatByChar())
+      for(auto& result: results)
       {
-        string newArg2;
-        if(isMain(caller))
+        if(isResultPrintedChatByChar(result))
         {
-          newArg2.append("&");
+          string newArg2;
+          if(isMain(caller))
+          {
+            newArg2.append("&");
+          }
+          newArg2.append("res_count_gen");
+          addNewArgument(call, newArg2, &rewriter);
         }
-        newArg2.append("res_count_gen");
-        addNewArgument(call, newArg2, &rewriter);
       }
     }
   }
@@ -1081,121 +1129,129 @@ public:
 };
 
 
-//We cannot pass in a runtime function name, so we check for it in the handler 
-//Add arguments to the function call if it uses global vars
-auto functionToTestMatcher = callExpr(
+//Handle tested values which are in function calls
+//auto functionToTestMatcher = callExpr(
+auto testedValueFunctionCallMatcher = callExpr(
     callee(functionDecl())).bind("functionToTest");
-class FunctionToTestHandler : public MatchFinder::MatchCallback
+//class FunctionToTestHandler : public MatchFinder::MatchCallback
+class TestedValueFunctionCallHandler : public MatchFinder::MatchCallback
 {
 private:
   Rewriter &rewriter;
 public:
-  FunctionToTestHandler(Rewriter &rewrite) : rewriter(rewrite) {}
+  TestedValueFunctionCallHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
   virtual void run(const MatchFinder::MatchResult &Result)
   {
-    const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>("functionToTest");
+    for(auto& result: results)
+    {
+      if(result.testedValue.type != TestedValueType::functionCall)
+        break;
 
-    //find out if this is a call to the tested function
-    auto name = expr -> getDirectCallee() -> getNameAsString();
-    if(name != testedValue.name)
-      return;
+      const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>("functionToTest");
+
+      //find out if we are testing for a function call and this is a call to the tested function
+      auto name = expr -> getDirectCallee() -> getNameAsString();
+      auto resultDecl = results.front();
+
+      if(name != result.testedValue.name)
+        return;
       
-    auto resultDecl = results.front();
-    string resultString;
+      string resultString;
 
-    if(testedValue.name == "fputc")
-    {
-      if(resultDecl.type != "char*" && resultDecl.type != "char *")
+      if(result.testedValue.name == "fputc")
       {
-        llvm::outs() << "The tested function is fputc, so the type of the result in the config file should be 'char *' and not '" << resultDecl.type << "'. Please change it.\n";
-      }
-
-      //get the first argument
-      string stringExpr;
-      llvm::raw_string_ostream s(stringExpr);
-      expr->getArg(0)->printPretty(s, 0, printingPolicy);
-
-      resultString.append("*((*result_gen).");
-      resultString.append(resultDecl.name);
-      resultString.append(" + *res_count_gen) = ");
-      resultString.append(s.str());
-      resultString.append(";\n");
-      resultString.append("(*res_count_gen)++");
-      resultString.append(";\n");
-    }
-    else if(testedValue.name == "fputs")
-    {
-    }
-    //TODO: add case for printf
-    else
-    {
-      //user defined function
-      if(testedValue.resultArg <= 0)
-      {
-        //we are interested in the return result
-        string callString;
-        llvm::raw_string_ostream s(callString);
-        expr->printPretty(s, 0, printingPolicy);
-
-        //TODO: read results from test-params
-        resultString = "\n(*result_gen).";
-        resultString.append(resultDecl.name);
-        resultString.append(" = ");
-        resultString.append(s.str());
-
-        //if the function uses global vars, we need to add them as arguments to the call
-        auto globalVarArgsIt = funcCallToAddedArgs.find(expr);
-        if(globalVarArgsIt != funcCallToAddedArgs.end())
+        if(resultDecl.declaration.type != "char*" && resultDecl.declaration.type != "char *")
         {
-          auto globalVars = globalVarArgsIt->second;
-          for(auto var = globalVars.begin(); var != globalVars.end(); var++)
-          {
-            auto newArg = (*var);
-            int pos = resultString.size()-1;
-            resultString.insert(pos, newArg);
-          }
+          llvm::outs() << "The tested function is fputc, so the type of the result in the config file should be 'char *' and not '" << resultDecl.declaration.type << "'. Please change it.\n";
         }
+
+        //get the first argument
+        string stringExpr;
+        llvm::raw_string_ostream s(stringExpr);
+        expr->getArg(0)->printPretty(s, 0, printingPolicy);
+
+        resultString.append("*((*result_gen).");
+        resultString.append(resultDecl.declaration.name);
+        resultString.append(" + *res_count_gen) = ");
+        resultString.append(s.str());
+        resultString.append(";\n");
+        resultString.append("(*res_count_gen)++");
         resultString.append(";\n");
       }
+      else if(result.testedValue.name == "fputs")
+      {
+      }
+      //TODO: add case for printf
       else
       {
-        //we are interested in an argument of the function
-        //find out which the argument is
-        auto argument = expr->getArg(testedValue.resultArg-1);
-        string stringArg;
-        llvm::raw_string_ostream arg(stringArg);
-        argument->printPretty(arg, 0, printingPolicy);
-
-        //assign the value of the argument after the call to the result struct
-        if(resultDecl.type.find("*"))
+        //user defined function
+        if(result.testedValue.resultArg <= 0)
         {
-          //a pointer
-          //TODO: Decide on the number of iterations
-          resultString.append("\nfor(int i = 0; i < 500; i++)");
-          resultString.append("{\n");
-          resultString.append("  *((*result_gen).");
-          resultString.append(resultDecl.name);
-          resultString.append(" + i) = *(");
-          resultString.append(arg.str());
-          resultString.append(" + i);\n");
-          resultString.append("}\n");
+          //we are interested in the return result
+          string callString;
+          llvm::raw_string_ostream s(callString);
+          expr->printPretty(s, 0, printingPolicy);
+
+          //TODO: read results from test-params
+          resultString = "\n(*result_gen).";
+          resultString.append(resultDecl.declaration.name);
+          resultString.append(" = ");
+          resultString.append(s.str());
+
+          //if the function uses global vars, we need to add them as arguments to the call
+          auto globalVarArgsIt = funcCallToAddedArgs.find(expr);
+          if(globalVarArgsIt != funcCallToAddedArgs.end())
+          {
+            auto globalVars = globalVarArgsIt->second;
+            for(auto var = globalVars.begin(); var != globalVars.end(); var++)
+            {
+              auto newArg = (*var);
+              int pos = resultString.size()-1;
+              resultString.insert(pos, newArg);
+            }
+          }
+          resultString.append(";\n");
         }
         else
         {
-          //not a pointer
-          resultString = "\n(*result_gen).";
-          resultString.append(resultDecl.name);
-          resultString.append(" = ");
-          resultString.append(arg.str());
-          resultString.append(";\n");
+          //we are interested in an argument of the function
+          //find out which the argument is
+          auto argument = expr->getArg(result.testedValue.resultArg-1);
+          string stringArg;
+          llvm::raw_string_ostream arg(stringArg);
+          argument->printPretty(arg, 0, printingPolicy);
+
+          //assign the value of the argument after the call to the result struct
+          if(resultDecl.declaration.type.find("*"))
+          {
+            //a pointer
+            //TODO: Decide on the number of iterations
+            resultString.append("\nfor(int i = 0; i < 500; i++)");
+            resultString.append("{\n");
+            resultString.append("  *((*result_gen).");
+            resultString.append(resultDecl.declaration.name);
+            resultString.append(" + i) = *(");
+            resultString.append(arg.str());
+            resultString.append(" + i);\n");
+            resultString.append("}\n");
+          }
+          else
+          {
+            //not a pointer
+            resultString = "\n(*result_gen).";
+            resultString.append(resultDecl.declaration.name);
+            resultString.append(" = ");
+            resultString.append(arg.str());
+            resultString.append(";\n");
+          }
         }
       }
-    }
 
-    auto callRange = expr->getSourceRange();
-    insertOnNewLineAfter(callRange, resultString, &rewriter);
-  }
+      auto callRange = expr->getSourceRange();
+      insertOnNewLineAfter(callRange, resultString, &rewriter);
+      }
+    }
 };
 
 auto includesMatcher = callExpr(callee(functionDecl())).bind("includes");
@@ -1254,7 +1310,7 @@ private:
   GlobalVarsAsArgsHandler globalVarsAsArgsHandler;
 
   //result
-  FunctionToTestHandler functionToTestHandler;
+  TestedValueFunctionCallHandler testedValueFunctionCallHandler;
 
   //main
   MainHandler mainHandler;
@@ -1280,7 +1336,7 @@ public:
     inputsAndResultsAsArgsHandler(R),
     globalVarsAsParamsHandler(R),
     globalVarsAsArgsHandler(R),
-    functionToTestHandler(R), 
+    testedValueFunctionCallHandler(R), 
     mainHandler(R),
     returnInMainHandler(R),
     includesHandler()
@@ -1305,7 +1361,7 @@ public:
     rewriteGlobalVarsMatchFinder.addMatcher(stdinAsParamsMatcher, &stdinAsParamsHandler);
     rewriteGlobalVarsMatchFinder.addMatcher(stdinAsArgsMatcher, &stdinAsArgsHandler);
 
-    mainMatchFinder.addMatcher(functionToTestMatcher, &functionToTestHandler);
+    mainMatchFinder.addMatcher(testedValueFunctionCallMatcher, &testedValueFunctionCallHandler);
     mainMatchFinder.addMatcher(mainMatcher, &mainHandler);
     mainMatchFinder.addMatcher(returnInMainMatcher, &returnInMainHandler);
 
@@ -1407,14 +1463,12 @@ void generateKernel(
     string outputDirectory,
     map<int, string> _argvIdxToInput,
     list<string> _stdinInputs,
-    list<struct Declaration> _results,
-    struct TestedValue _testedValue)
+    list<struct ResultDeclaration> _results)
 {
   llvm::outs() << "Generating kernel code... ";
   
   //set global scope variables
   testClFilename = outputDirectory + "/" + "test.cl";
-  testedValue = _testedValue;
   argvIdxToInput = _argvIdxToInput;
   stdinInputs = _stdinInputs;
   results = _results;

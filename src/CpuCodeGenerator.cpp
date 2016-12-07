@@ -31,35 +31,35 @@ std::string generatePrintInts(
     const int& size)
 {
   std::stringstream ss;
-  ss << "for(k = 0; k < " << size << "; k++)\n";
+  ss << "printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM << ");\n";
+  ss << "for(int k = 0; k < " << size << "; k++)\n";
   ss << "{\n";
   ss << "  int curel = " << "curres." << name << "[k];\n";
-  ss << "  printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM << ");\n";
   ss << "  printf(\"%d \", curel);\n";
-  ss << "  printf(\"\\n\");\n";
   ss << "}\n";
+  ss << "printf(\"\\n\");\n";
   return ss.str();
 }
 
 std::string generatePrintCalls(
-    const struct Declaration& resultDecl)
+    const struct ResultDeclaration& resultDecl)
 {
   std::string str;
-  if(resultDecl.type == "int")
+  if(resultDecl.declaration.type == "int")
   {
-    if(resultDecl.isArray)
+    if(resultDecl.declaration.isArray)
     {
-      str = generatePrintInts(resultDecl.name, resultDecl.size);
+      str = generatePrintInts(resultDecl.declaration.name, resultDecl.declaration.size);
     }
     else
     {
-      str = generatePrintInt(resultDecl.name);
+      str = generatePrintInt(resultDecl.declaration.name);
     }
   }
   else
   {
     //TODO: Handle other types
-    llvm::outs() << "\ngenerateCompareResults: I don't know how to print results of type " << resultDecl.type << "\n";
+    llvm::outs() << "\ngenerateCompareResults: I don't know how to print results of type " << resultDecl.declaration.type << "\n";
   }
 
   return str;
@@ -67,7 +67,7 @@ std::string generatePrintCalls(
 
 void generateCompareResults(
     std::ofstream& strFile,
-    const std::list<struct Declaration>& resultDecls)
+    const std::list<struct ResultDeclaration>& resultDecls)
 {
   strFile << "void compare_results(struct " << structs_constants::RESULT << "* results, struct " << structs_constants::RESULT << "* exp_results, int num_test_cases)\n";
   strFile << "{\n";

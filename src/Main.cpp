@@ -36,8 +36,8 @@ static llvm::cl::OptionCategory MscToolCategory("kernel-gen options");
 static llvm::cl::extrahelp CommonHelp(clang::tooling::CommonOptionsParser::HelpMessage);
 
 //private function declarations
-void generateStructs(const std::string&, const std::list<std::string>&, const std::list<struct Declaration>&, const std::list<struct Declaration>&); 
-void generateCpuGen(const std::string&, const std::list<struct Declaration>&, const std::list<struct Declaration>&, const std::list<std::string>&);
+void generateStructs(const std::string&, const std::list<std::string>&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&); 
+void generateCpuGen(const std::string&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&, const std::list<std::string>&);
 
 int main(int argc, const char **argv)
 {
@@ -47,18 +47,17 @@ int main(int argc, const char **argv)
     return 0;
   }
 
-  struct TestedValue testedValue;
   std::map<int, std::string> argvIdxToInput;
   std::list<std::string> stdinInputs;
   std::list<struct Declaration> inputDeclarations;
-  std::list<struct Declaration> resultDeclarations;
+  std::list<struct ResultDeclaration> resultDeclarations;
 
   //TODO: the testing params come after '--'
   std::string configFilename = argv[3];
   std::string outputDirectory = argv[4];
 
   //parse the configuration file
-  if(parseConfig(configFilename, testedValue, argvIdxToInput, stdinInputs, inputDeclarations, resultDeclarations) == status_constants::FAIL)
+  if(parseConfig(configFilename, argvIdxToInput, stdinInputs, inputDeclarations, resultDeclarations) == status_constants::FAIL)
   {
     llvm::outs() << "Failed to parse the configuration file " << configFilename <<". \nTERMINATING!\n";
     return status_constants::FAIL;
@@ -72,14 +71,14 @@ int main(int argc, const char **argv)
   //generate kernel
   clang::tooling::CommonOptionsParser OptionsParser(argc, argv, MscToolCategory);
   clang::tooling::ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
-  generateKernel(&Tool, outputDirectory, argvIdxToInput, stdinInputs, resultDeclarations, testedValue);
+  generateKernel(&Tool, outputDirectory, argvIdxToInput, stdinInputs, resultDeclarations);
 }
 
 void generateStructs(
     const std::string& outputDirectory, 
     const std::list<std::string>& stdinInputs,
     const std::list<struct Declaration>& inputDeclarations,
-    const std::list<struct Declaration>& resultDeclarations)
+    const std::list<struct ResultDeclaration>& resultDeclarations)
 {
   llvm::outs() << "Generating memory buffer structs... ";
 
@@ -123,16 +122,20 @@ void generateStructs(
   strFile << "  int test_case_num;\n";
   for(auto& resultDecl: resultDeclarations)
   {
-    std::string type = resultDecl.type;
+    std::string type = resultDecl.declaration.type;
     auto starChar = type.find("*");
     if(starChar != std::string::npos)
     {
       type.erase(starChar);
-      strFile << "  " << type << " " << resultDecl.name <<"[500];\n";
+      strFile << "  " << type << " " << resultDecl.declaration.name <<"[500];\n";
+    }
+    else if(resultDecl.declaration.isArray)
+    {
+      strFile << "  " << type << " " << resultDecl.declaration.name <<"[" << resultDecl.declaration.size << "];\n";
     }
     else
     {
-      strFile << "  " << type << " " << resultDecl.name <<";\n";
+      strFile << "  " << type << " " << resultDecl.declaration.name <<";\n";
     }
   }
   strFile << "} " << structs_constants::RESULT <<";\n\n";
@@ -146,7 +149,7 @@ void generateStructs(
 void generateCpuGen(
     const std::string& outputDirectory, 
     const std::list<struct Declaration>& inputs, 
-    const std::list<struct Declaration>& results, 
+    const std::list<struct ResultDeclaration>& results, 
     const std::list<std::string>& stdinInputs)
 {
   llvm::outs() << "Generating CPU code... ";

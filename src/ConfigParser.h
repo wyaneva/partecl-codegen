@@ -22,10 +22,9 @@
 
 int parseConfig(
     const std::string&,
-    struct TestedValue&,
     std::map<int, std::string>&,
     std::list<std::string>&,
     std::list<struct Declaration>&,
-    std::list<struct Declaration>&);
+    std::list<struct ResultDeclaration>&);
 
 #endif

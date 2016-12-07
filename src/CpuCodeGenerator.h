@@ -20,7 +20,7 @@
 #include <fstream>
 #include "Utils.h"
 
-void generateCompareResults(std::ofstream&, const std::list<struct Declaration>&);
+void generateCompareResults(std::ofstream&, const std::list<struct ResultDeclaration>&);
 void generateHeaderFile();
 void generatePopulateInputs();
 void generateSourceFile();

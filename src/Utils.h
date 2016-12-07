@@ -46,6 +46,12 @@ static struct Declaration
   int size; // set to -1 if not array
 } Declaration;
 
+static struct ResultDeclaration
+{
+  struct Declaration declaration;
+  struct TestedValue testedValue;
+} ResultValue;
+
 static std::map<std::string, std::string> functionToHeaderFile = 
 {
   {"isalnum", "cl-ctype.h"},

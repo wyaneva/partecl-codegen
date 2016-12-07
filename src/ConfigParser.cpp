@@ -57,11 +57,13 @@ int parseTestedValueFunction(
 }
 
 int parseTestedValueVariable(
-    const std::string& line,
     std::istringstream& iss, 
     struct TestedValue& testedValue)
 {
-  //TODO:
+  testedValue.type = TestedValueType::variable;
+  iss >> testedValue.name;
+  testedValue.resultArg = -1;
+
   return status_constants::SUCCESS;
 }
 
@@ -163,13 +165,36 @@ int parseStdin(
 int parseResult(
     const std::string& line,
     std::istringstream& iss,
-    std::list<struct Declaration>& resultDeclarations)
+    std::list<struct ResultDeclaration>& resultDeclarations)
 {
-  struct Declaration result;
-  iss >> result.type;
+  struct ResultDeclaration result;
+  iss >> result.declaration.type;
       
-  if(parsePotentialArray(line, iss, result) == status_constants::FAIL)
+  if(parsePotentialArray(line, iss, result.declaration) == status_constants::FAIL)
     return status_constants::FAIL;
+
+  std::string annot;
+  iss >> annot;
+
+  //parse the tested value as a function call
+  if(annot == config_constants::FUNCTION) 
+  {
+    if(parseTestedValueFunction(line, iss, result.testedValue) == status_constants::FAIL)
+     return status_constants::FAIL;
+  }
+
+  //parse the tested value as a variable 
+  else if(annot == config_constants::VARIABLE)
+  {
+    if(parseTestedValueVariable(iss, result.testedValue) == status_constants::FAIL)
+      return status_constants::FAIL;
+  }
+
+  else
+  {
+    llvm::outs() << "I don't know how to parse annotation " << annot << " on line: " << line;
+    return status_constants::FAIL;
+  }
 
   resultDeclarations.push_back(result);
 
@@ -180,11 +205,10 @@ int parseResult(
 //it parses the configuration file and returns all the necessary data
 int parseConfig(
     const std::string& configFilename,
-    struct TestedValue& testedValue,
     std::map<int, std::string>& argvIdxToInput,
     std::list<std::string>& stdinInputs,
     std::list<struct Declaration>& inputDeclarations,
-    std::list<struct Declaration>& resultDeclarations)
+    std::list<struct ResultDeclaration>& resultDeclarations)
 {
   llvm::outs() << "Parsing configuration file... ";
 
@@ -199,20 +223,6 @@ int parseConfig(
     std::string annot;
     iss >> annot;
 
-    //parse the tested value as a function call
-    if(annot == config_constants::FUNCTION) 
-    {
-      if(parseTestedValueFunction(line, iss, testedValue) == status_constants::FAIL)
-        return status_constants::FAIL;
-    }
-
-    //parse the tested value as a variable 
-    if(annot == config_constants::VARIABLE)
-    {
-      if(parseTestedValueVariable(line, iss, testedValue) == status_constants::FAIL)
-        return status_constants::FAIL;
-    }
-
     //parse the inputs
     if(annot == config_constants::INPUT)
     {
@@ -221,17 +231,23 @@ int parseConfig(
     }
 
     //parse stdin inputs
-    if(annot == config_constants::STDIN)
+    else if(annot == config_constants::STDIN)
     {
       if(parseStdin(iss, stdinInputs) == status_constants::FAIL)
         return status_constants::FAIL;
     }
 
     //parse results
-    if(annot == config_constants::RESULT)
+    else if(annot == config_constants::RESULT)
     {
       if(parseResult(line, iss, resultDeclarations) == status_constants::FAIL)
         return status_constants::FAIL;
+    }
+
+    else
+    {
+      llvm::outs() << "I don't know how to parse annotation " << annot << " on line: " << line;
+      return status_constants::FAIL;
     }
   }
 
