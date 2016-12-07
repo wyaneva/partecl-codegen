@@ -15,6 +15,7 @@
  */
 
 #include <sstream>
+#include <string>
 #include "Constants.h"
 #include "CpuCodeGenerator.h"
 
@@ -81,4 +82,67 @@ void generateCompareResults(
   }
   strFile << "  }\n";
   strFile << "}\n";
+}
+
+void generatePopulateInputs(
+    std::ofstream& strFile,
+    const std::list<struct Declaration>& inputDecls,
+    const std::list<std::string>& stdinInputs)
+{
+  strFile << "void populate_inputs(struct input *input, int argc, char** args, int stdinc, char** stdins)\n";
+  strFile << "{\n";
+
+  strFile << "  (*input)." << structs_constants::TEST_CASE_NUM << " = atoi(args[0]);\n";
+  strFile << "  (*input)." << structs_constants::ARGC << " = argc;\n";
+
+  int i = -1;
+  for(auto& input: inputDecls)
+  {
+    i++;
+
+    std::string name = input.name;
+    std::string argsidx = std::to_string(i+1);
+
+    //for arrays, add a loop and indexes
+    if(input.isArray)
+    {
+      strFile << "  for(int i = 0; i < " << input.size << "; i++)\n";
+      name.append("[i]");
+      argsidx = "i+";
+      argsidx.append(std::to_string(i+1));
+    }
+    else
+    {
+      strFile << "  if(argc >= " << i+2 << ")\n";
+    }
+
+    //value
+    //TODO: Add handling for other types
+    if(input.type == "int")
+    {
+      strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
+    }
+    else if(input.type == "bool")
+    {
+      strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
+    }
+    else if(input.type == "char *" || input.type == "char*")
+    {
+      strFile << "    strcpy((*input)." << name << ", args[" << argsidx << "]);\n";
+    }
+    else
+    {
+      strFile << "args[" << argsidx << "];\n";
+    }
+  }
+
+  for(auto& stdinArg: stdinInputs)
+  {
+    strFile << "  if(stdinc >= " << i+1 << ")\n";
+    strFile << "    strcpy((*input)." << stdinArg << ", stdins[" << i << "]);\n";
+  }
+
+  strFile << "}\n";
+
+
 }

@@ -8,21 +8,25 @@ int add(int a, int b)
 
 int main(int argc, char* argv[])
 {
-  if(argc < 3)
+  if(argc < 5)
   {
     printf("Please, enter integers you'd like to add.\n");
     return 0;
   }
-  int a = atoi(argv[1]);
-  int b = atoi(argv[2]);
+  int a[3];
+  for(int i = 0; i < 3; i++)
+  { 
+    a[i] = atoi(argv[i+1]);
+  }
+  int b = atoi(argv[4]);
 
-  int sum[10];
-  for(int i = 0; i < 10; i++)
+  int sum[3];
+  for(int i = 0; i < 3; i++)
   {
-    sum[i] = add(a, b);
+    sum[i] = add(a[i], b);
   }
 
-  for(int i = 0; i < 10; i++)
+  for(int i = 0; i < 3; i++)
   {
     printf("%d\n", sum[i]);
   }

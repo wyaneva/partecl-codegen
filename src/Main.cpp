@@ -104,6 +104,10 @@ void generateStructs(
       type.erase(starChar);
       strFile << "  " << type << " " << currentInput.name << "[500];\n";
     }
+    else if(currentInput.isArray)
+    {
+      strFile << "  " << type << " " << currentInput.name << "[" << currentInput.size << "];\n";
+    }
     else
     {
       strFile << "  " << type << " " << currentInput.name << ";\n";
@@ -177,46 +181,8 @@ void generateCpuGen(
   strFile << "#include <string.h>\n";
   strFile << "#include <stdio.h>\n";
   strFile << "#include \"cpu-gen.h\"\n\n";
-  strFile << "void populate_inputs(struct input *input, int argc, char** args, int stdinc, char** stdins)\n";
-  strFile << "{\n";
 
-  strFile << "  (*input).test_case_num = atoi(args[0]);\n";
-  strFile << "  (*input).argc = argc;\n";
-
-  int i = -1;
-  for(auto& currentInput: inputs)
-  {
-    i++;
-
-    strFile << "  if(argc >= " << i+2 << ")\n";
-    //value
-    //TODO: Add handling for other types
-    if(currentInput.type == "int")
-    {
-      strFile << "    (*input)." << currentInput.name << " = " << "atoi(args[" << i+1 << "]);\n";
-    }
-    else if(currentInput.type == "bool")
-    {
-      strFile << "    (*input)." << currentInput.name << " = " << "atoi(args[" << i+1 << "]);\n";
-    }
-    else if(currentInput.type == "char *" || currentInput.type == "char*")
-    {
-      strFile << "    strcpy((*input)." << currentInput.name << ", args[" << i+1 << "]);\n";
-    }
-    else
-    {
-      strFile << "args[" << i+1 << "];\n";
-    }
-  }
-
-  for(auto& stdinArg: stdinInputs)
-  {
-    strFile << "  if(stdinc >= " << i+1 << ")\n";
-    strFile << "    strcpy((*input)." << stdinArg << ", stdins[" << i << "]);\n";
-  }
-
-  strFile << "}\n";
-
+  generatePopulateInputs(strFile, inputs, stdinInputs);
   generateCompareResults(strFile, results);
 
   strFile.close();
