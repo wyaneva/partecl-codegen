@@ -20,35 +20,35 @@
 //constants used in the configuration file
 namespace config_constants 
 {
-  static const char* FUNCTION = "function:";
-  static const char* VARIABLE = "variable:";
-  static const char* RET = "RET";
-  static const char* ARG = "ARG";
-  static const char* INPUT = "input:";
-  static const char* STDIN = "stdin:";
-  static const char* RESULT = "result:";
+  const char* const FUNCTION = "function:";
+  const char* const VARIABLE = "variable:";
+  const char* const RET = "RET";
+  const char* const ARG = "ARG";
+  const char* const INPUT = "input:";
+  const char* const STDIN = "stdin:";
+  const char* const RESULT = "result:";
 }
 
 //filenames
 namespace filename_constants
 {
-  static const char* STRUCTS_FILENAME = "structs.h";
-  static const char* CPU_GEN_FILENAME = "cpu-gen";
+  const char* const STRUCTS_FILENAME = "structs.h";
+  const char* const CPU_GEN_FILENAME = "cpu-gen";
 }
 
 //status
 namespace status_constants
 {
-  static const int FAIL = 0;
-  static const int SUCCESS = 1;
+  const int FAIL = 0;
+  const int SUCCESS = 1;
 }
 
 namespace structs_constants
 {
-  static const char* ARGC = "argc";
-  static const char* INPUT_S = "input";
-  static const char* RESULT_S = "result";
-  static const char* TEST_CASE_NUM = "test_case_num";
+  const char* const ARGC = "argc";
+  const char* const INPUT = "input";
+  const char* const RESULT = "result";
+  const char* const TEST_CASE_NUM = "test_case_num";
 }
 
 #endif 

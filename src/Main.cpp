@@ -90,7 +90,7 @@ void generateStructs(
   //write input
   strFile << "#ifndef STRUCTS_H\n";
   strFile << "#define STRUCTS_H\n\n";
-  strFile << "typedef struct " << structs_constants::INPUT_S <<"\n";
+  strFile << "typedef struct " << structs_constants::INPUT <<"\n";
   strFile << "{\n";
   strFile << "  int " << structs_constants::TEST_CASE_NUM << ";\n";
   strFile << "  int " << structs_constants::ARGC <<";\n";
@@ -115,10 +115,10 @@ void generateStructs(
   {
     strFile << "  " << "char " << " " << stdinArg << "[500];\n";
   }
-  strFile << "} " << structs_constants::INPUT_S << ";\n\n";
+  strFile << "} " << structs_constants::INPUT << ";\n\n";
 
   //write result
-  strFile << "typedef struct " << structs_constants::RESULT_S << "\n";
+  strFile << "typedef struct " << structs_constants::RESULT << "\n";
   strFile << "{\n";
   strFile << "  int test_case_num;\n";
   for(auto& resultDecl: resultDeclarations)
@@ -135,7 +135,7 @@ void generateStructs(
       strFile << "  " << type << " " << resultDecl.name <<";\n";
     }
   }
-  strFile << "} " << structs_constants::RESULT_S <<";\n\n";
+  strFile << "} " << structs_constants::RESULT <<";\n\n";
 
   strFile << "#endif\n";
   strFile.close();
