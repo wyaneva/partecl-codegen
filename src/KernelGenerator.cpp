@@ -193,6 +193,7 @@ void addNewArgument(
 
 void commentOut(SourceRange range, Rewriter *rewriter)
 {
+  llvm::outs() << range.getBegin().printToString(rewriter->getSourceMgr()) << " " << range.getEnd().printToString(rewriter->getSourceMgr()); 
   rewriter->InsertText(range.getBegin(), "/*");
   rewriter->InsertText(range.getEnd().getLocWithOffset(2), "*/");
 }
@@ -234,6 +235,12 @@ void commentOutLine(SourceRange range, Rewriter *rewriter)
   endLoc = endLoc.getLocWithOffset(-2);
 
   commentOut(beginLoc, endLoc, rewriter);
+}
+
+void commentOutToEndOfLine(SourceRange range, Rewriter& rewriter)
+{
+  auto beginLoc = range.getBegin();
+  rewriter.InsertText(beginLoc, "//");
 }
 
 bool isGlobalVar(const DeclRefExpr *expr)
@@ -761,7 +768,7 @@ public:
   virtual void run(const MatchFinder::MatchResult &Result)
   {
     const ReturnStmt *returnStmt = Result.Nodes.getNodeAs<ReturnStmt>("returnInMain");
-    commentOut(returnStmt->getSourceRange(), &rewriter);
+    commentOutToEndOfLine(returnStmt->getSourceRange(), rewriter);
   }
 };
 
@@ -849,9 +856,10 @@ public:
 
     //turn the reference into a pointer
     auto varType = expr->getType();
-    if(!varType->isPointerType() && !varType->isArrayType())
+    if(!varType->isArrayType())
     {
-      rewriter.InsertText(expr->getLocStart(), "*");
+      rewriter.InsertText(expr->getLocStart(), "(*");
+      rewriter.InsertText(expr->getLocStart().getLocWithOffset(expr->getDecl()->getNameAsString().size()), ")");
     }
 
     //check if the global var was already added to the argument list
@@ -925,11 +933,10 @@ public:
       newParam.append(" ");
 
       //turn it into a pointer
-      if(!varType->isPointerType() && !varType->isArrayType())
+      if(!varType->isArrayType())
       {
         newParam.append("*");
       }
-
       newParam.append(varName);
 
       if(varType->isArrayType())
@@ -963,7 +970,7 @@ public:
 
     //add the global var as an argument
     auto globalVars = globalVarDeclsIt->second;
-    for(auto var = globalVars.begin(); var != globalVars.end(); var++)
+    for(auto& var: globalVars)
     {
       std::string newArg;
 
@@ -972,12 +979,11 @@ public:
       auto callerGlobalVars = funcToGlobalVars.find(caller);
       if(callerGlobalVars == funcToGlobalVars.end())
       {
-        auto varType = (*var)->getType();
-        if(!varType->isPointerType() && !varType->isArrayType())
+        if(!var->getType()->isArrayType())
           newArg.append("&");
       }
 
-      newArg.append((*var)->getNameAsString());
+      newArg.append(var->getNameAsString());
 
       addNewArgument(call, newArg, &rewriter);
     }
