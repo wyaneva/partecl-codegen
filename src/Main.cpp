@@ -71,7 +71,7 @@ int main(int argc, const char **argv)
   //generate kernel
   clang::tooling::CommonOptionsParser OptionsParser(argc, argv, MscToolCategory);
   clang::tooling::ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
-  generateKernel(&Tool, outputDirectory, argvIdxToInput, stdinInputs, resultDeclarations);
+  generateKernel(&Tool, outputDirectory, argvIdxToInput, inputDeclarations, stdinInputs, resultDeclarations);
 }
 
 void generateStructs(

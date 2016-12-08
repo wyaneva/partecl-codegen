@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+int a[3] = {1, 2, 3};
+
 int add(int a, int b)
 {
   return a + b;
@@ -8,17 +10,13 @@ int add(int a, int b)
 
 int main(int argc, char* argv[])
 {
-  if(argc < 5)
+  if(argc < 2)
   {
     printf("Please, enter integers you'd like to add.\n");
     return 0;
   }
-  int a[3];
-  for(int i = 0; i < 3; i++)
-  { 
-    a[i] = atoi(argv[i+1]);
-  }
-  int b = atoi(argv[4]);
+
+  int b = atoi(argv[1]);
 
   int sum[3];
   for(int i = 0; i < 3; i++)

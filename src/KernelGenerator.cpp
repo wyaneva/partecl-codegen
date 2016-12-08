@@ -40,41 +40,41 @@
 using namespace clang;
 using namespace clang::tooling;
 using namespace clang::ast_matchers;
-using namespace std;
 
 LangOptions langOpts;
 PrintingPolicy printingPolicy(langOpts);
 
 //Global scope members
-string testClFilename;
-map<int, string> argvIdxToInput;
-map<const Expr *, bool> argvIdxToIsReplaced;
-list<string> stdinInputs;
-list<struct ResultDeclaration> results;
+std::string testClFilename;
+std::map<int, std::string> argvIdxToInput;
+std::map<const Expr *, bool> argvIdxToIsReplaced;
+std::list<struct Declaration> inputs;
+std::list<std::string> stdinInputs;
+std::list<struct ResultDeclaration> results;
 
 //a list of all the global vars
-list<const VarDecl *> globalVars;
+std::list<const VarDecl *> globalVars;
 
 //a map of all global vars used in a function declaration (they need to be added to the parameter list) //both original uses and added as parameters to function calls
-map<const FunctionDecl *, vector<const ValueDecl *>> funcToGlobalVars;
-vector<const FunctionDecl *> functionsWhichUseTestInputs;
-vector<const FunctionDecl *> functionsWhichUseTestResults;
-vector<const FunctionDecl *> functionsWhichUseStdin;
+std::map<const FunctionDecl *, std::vector<const ValueDecl *>> funcToGlobalVars;
+std::vector<const FunctionDecl *> functionsWhichUseTestInputs;
+std::vector<const FunctionDecl *> functionsWhichUseTestResults;
+std::vector<const FunctionDecl *> functionsWhichUseStdin;
 
 //a map of function calls to their caller
-map<const CallExpr *, const FunctionDecl *> funcCallToCallerDecl;
+std::map<const CallExpr *, const FunctionDecl *> funcCallToCallerDecl;
 
 //a map of function declarations to all their callers
-map<const FunctionDecl*, list<const FunctionDecl *>> funcDeclToCallerDecls;
+std::map<const FunctionDecl*, std::list<const FunctionDecl *>> funcDeclToCallerDecls;
 
 //a map which contains all parameters that were added to a function declaration, together with commas in front of them
-map<const FunctionDecl *, list<string>> funcToAddedParameters;
+std::map<const FunctionDecl *, std::list<std::string>> funcToAddedParameters;
 
 //a map which contains all arguments that were added to a function call, together with commas in front of them
-map<const CallExpr *, list<string>> funcCallToAddedArgs;
+std::map<const CallExpr *, std::list<std::string>> funcCallToAddedArgs;
 
 //a list of include files to add
-list<string> includesToAdd;
+std::list<std::string> includesToAdd;
 
 void replaceParam(
     const ParmVarDecl *paramDecl, 
@@ -118,7 +118,7 @@ void addNewParam(
       addComma = true;
 
   //insert the new parameter
-  string paramSource = "";
+  std::string paramSource = "";
   if(addComma)
     paramSource.append(", ");
 
@@ -177,7 +177,7 @@ void addNewArgument(
       addComma = true;
 
   //add comma if the function already has arguments 
-  string argSource = "";
+  std::string argSource = "";
   if(addComma)
     argSource.append(", ");
 
@@ -205,7 +205,7 @@ void commentOut(SourceLocation start, SourceLocation end, Rewriter *rewriter)
 
 void insertOnNewLineAfter(
     SourceRange range,
-    string textToInsert,
+    std::string textToInsert,
     Rewriter *rewriter)
 {
   auto location = range.getEnd();
@@ -238,9 +238,20 @@ void commentOutLine(SourceRange range, Rewriter *rewriter)
 
 bool isGlobalVar(const DeclRefExpr *expr)
 {
-  for(auto it = globalVars.begin(); it != globalVars.end(); it++)
+  for(auto& globalVar: globalVars)
   {
-    if(expr->getDecl() == (*it))
+    if(expr->getDecl() == globalVar) 
+      return true;
+  }
+
+  return false;
+}
+
+bool isTestInput(const VarDecl *var)
+{
+  for(auto& input: inputs)
+  {
+    if(var->getNameAsString() == input.name)
       return true;
   }
 
@@ -285,7 +296,7 @@ bool isMain(const FunctionDecl *decl)
 //recursively add global variables to the function and all functions which call it
 void addGlobalVarsToFunctionDecl(
     const FunctionDecl * funcDecl, 
-    vector<const ValueDecl *> globalVars)
+    std::vector<const ValueDecl *> globalVars)
 {
   auto callerDeclsTuple = funcDeclToCallerDecls.find(funcDecl);
   if(callerDeclsTuple == funcDeclToCallerDecls.end())
@@ -404,7 +415,7 @@ void findAllFunctionsWhichUseSpecialVars()
   }
 }
 
-void addInclude(string includeToAdd)
+void addInclude(std::string includeToAdd)
 {
   if(find(includesToAdd.begin(), includesToAdd.end(), includeToAdd) != includesToAdd.end())
     return;
@@ -413,7 +424,7 @@ void addInclude(string includeToAdd)
 }
 
 //Returns false if it cannot find the InputParam in the map
-bool getInputParamFromArgvIndex(const ArraySubscriptExpr *argvExpr, string *newText)
+bool getInputParamFromArgvIndex(const ArraySubscriptExpr *argvExpr, std::string *newText)
 {
       //Get the index expression
       const Expr *arrayIndex = argvExpr->getRHS();
@@ -454,7 +465,7 @@ public:
       //This reference to argv is not in a atoi call
       if(!argvIdxToIsReplaced[expr->getIdx()])
       {
-        string text = "input_gen.";
+        std::string text = "input_gen.";
         if(getInputParamFromArgvIndex(expr, &text))
         {
           SourceRange range = expr->getSourceRange();
@@ -484,7 +495,7 @@ public:
     bool shouldReplace = true;
 
     //Get the input parameter to match
-    string newText = "input_gen.";
+    std::string newText = "input_gen.";
     
     if(const ArraySubscriptExpr *expr = Result.Nodes.getNodeAs<ArraySubscriptExpr>("argvArray"))
     {
@@ -571,7 +582,7 @@ public:
     } 
     
     stdinInputs.pop_front(); 
-    string inputRef; 
+    std::string inputRef; 
     if(isMain(caller))
       inputRef.append("input_gen.");
     else
@@ -621,7 +632,7 @@ public:
     const FunctionDecl *decl = Result.Nodes.getNodeAs<FunctionDecl>("mainDecl");
   
     //rename and label as kernel
-    string funcName = decl->getNameInfo().getName().getAsString();
+    std::string funcName = decl->getNameInfo().getName().getAsString();
     rewriter.ReplaceText(decl->getLocation(), funcName.length(), "main_kernel");
     rewriter.InsertTextBefore(decl->getTypeSpecStartLoc(), "__kernel ");
 
@@ -632,39 +643,55 @@ public:
 
     //change argument list
     const ParmVarDecl *paramDeclArgc = decl->getParamDecl(0);
-    replaceParam(paramDeclArgc, "__global struct input * inputs", &rewriter);
+    std::stringstream ssinput;
+    ssinput << "__global struct " << structs_constants::INPUT << "* inputs";
+    replaceParam(paramDeclArgc, ssinput.str(), &rewriter);
 
     const ParmVarDecl *paramDeclArgv = decl->getParamDecl(1);
-    replaceParam(paramDeclArgv, "__global struct result * results", &rewriter);
+    std::stringstream ssresult;
+    ssresult << "__global struct " << structs_constants::RESULT << "* results";
+    replaceParam(paramDeclArgv, ssresult.str(), &rewriter);
 
     //add variables at the beginning of body
     Stmt *body = decl->getBody();
     auto bbLoc = body->getSourceRange().getBegin().getLocWithOffset(1);
     auto eLoc = body->getSourceRange().getEnd();
  
-    string idxLine = "\n  int idx = get_global_id(0);\n";
-    string inputLine = "  struct input input_gen = inputs[idx];\n";
-    string resultLine1 = "  __global struct result *result_gen = &results[idx];\n";
-    string argcLine = "  int argc = input_gen.argc;\n";
-    string resultLine2 = "  (*result_gen).test_case_num = input_gen.test_case_num;\n";
-    string insertion = "";
-    string eInsertion = "";
-    insertion.append(idxLine);
-    insertion.append(inputLine);
-    insertion.append(resultLine1);
-    insertion.append(argcLine);
-    insertion.append(resultLine2);
+    std::stringstream bbInsertion;
+    std::stringstream eInsertion;
+
+    //append idx, input, argc and results lines
+    bbInsertion << "\n  int idx = get_global_id(0);\n";
+    bbInsertion << "  struct " << structs_constants::INPUT << " input_gen = inputs[idx];\n";
+    bbInsertion << "  __global struct " << structs_constants::RESULT << " *result_gen = &results[idx];\n";
+    bbInsertion << "  int " << structs_constants::ARGC << " = input_gen.argc;\n";
+    bbInsertion << "  (*result_gen)." << structs_constants::TEST_CASE_NUM << " = input_gen." << structs_constants::TEST_CASE_NUM << ";\n";
 
     //add declarations for global variables
-    insertion.append("\n");
-    for(auto it = globalVars.begin(); it != globalVars.end(); it++)
+    bbInsertion << "\n";
+    for(auto& globalVar: globalVars)
     {
-      insertion.append("  ");
-      string stringLiteral;
-      llvm::raw_string_ostream s(stringLiteral);
-      (*it)->print(s, 0, true);
-      insertion.append(s.str());
-        insertion.append(";\n");
+      if(!isTestInput(globalVar))
+      {
+        bbInsertion << "  ";
+        std::string stringLiteral;
+        llvm::raw_string_ostream s(stringLiteral);
+        globalVar->print(s, 0, true);
+      bbInsertion << s.str() << ";\n";
+      }
+    }
+
+    //add assignment for array based inputs
+    for(auto& input: inputs)
+    {
+      if(input.isArray)
+      {
+        bbInsertion << "  " << input.type << " " << input.name << "[" << input.size << "];\n";
+        bbInsertion << "  for(int i = 0; i < " << input.size << "; i++)\n";
+        bbInsertion << "  {\n";
+        bbInsertion << "    " << input.name << "[i] = input_gen." << input.name << "[i];\n";
+        bbInsertion << "  }\n";
+      }
     }
 
     //TODO: Handle multiple results more gracefully for fputc
@@ -673,23 +700,19 @@ public:
       //add declaration for counter in case there is a result which is printed char by char
       if(isResultPrintedChatByChar(result))
       {
-        insertion.append("  int res_count_gen;\n");
-        insertion.append("  res_count_gen = 0;\n");
+        bbInsertion << "  int res_count_gen;\n" << "  res_count_gen = 0;\n";
       }
 
       //add declaration for counter in case stdin stream is used
       if(isStdinUsed())
       {
-        insertion.append("  int stdin_count_gen;\n");
-        insertion.append("  stdin_count_gen = 0;\n");
+        bbInsertion << "  int stdin_count_gen;\n" << "  stdin_count_gen = 0;\n";
       }
 
       //character termination in case result is printed char by char
       if(isResultPrintedChatByChar(result))
       {
-        eInsertion.append("  *((*result_gen).");
-        eInsertion.append(result.declaration.name);
-        eInsertion.append(" + res_count_gen) = \'\\0\';\n");
+        eInsertion << "  *((*result_gen)." << result.declaration.name << " + res_count_gen) = \'\\0\';\n";
       }
       
       //when the tested value is a variable, add an assignment to the result struct
@@ -697,33 +720,33 @@ public:
       {
         if(result.declaration.isArray)
         {
-          eInsertion.append("  for(int i = 0; i < ");
-          eInsertion.append(to_string(result.declaration.size));
-          eInsertion.append("; i++)\n");
-          eInsertion.append("  {\n");
-          eInsertion.append("    (*result_gen).");
-          eInsertion.append(result.declaration.name);
-          eInsertion.append("[i] = ");
-          eInsertion.append(result.testedValue.name);
-          eInsertion.append("[i];\n");
-          eInsertion.append("  }\n");
+          eInsertion << "  for(int i = 0; i < ";
+          eInsertion << std::to_string(result.declaration.size);
+          eInsertion << "; i++)\n";
+          eInsertion << "  {\n";
+          eInsertion << "    (*result_gen).";
+          eInsertion << result.declaration.name;
+          eInsertion << "[i] = ";
+          eInsertion << result.testedValue.name;
+          eInsertion << "[i];\n";
+          eInsertion << "  }\n";
         }
         else
         {
-          eInsertion.append("  (*result_gen).");
-          eInsertion.append(result.declaration.name);
-          eInsertion.append(" = ");
-          eInsertion.append(result.testedValue.name);
-          eInsertion.append(";\n");
+          eInsertion << "  (*result_gen).";
+          eInsertion << result.declaration.name;
+          eInsertion << " = ";
+          eInsertion << result.testedValue.name;
+          eInsertion << ";\n";
         }
       }
     }
 
     //insert in the beginning
-    rewriter.InsertText(bbLoc, insertion); 
+    rewriter.InsertText(bbLoc, bbInsertion.str()); 
 
     //insert in the end
-    rewriter.InsertText(eLoc, eInsertion); 
+    rewriter.InsertText(eLoc, eInsertion.str()); 
   }
 };
 
@@ -759,7 +782,7 @@ public:
        funcName == "fprintf" || 
        funcName == "exit" ||
        funcName == "abort" ||
-       funcName.find("fput") != string::npos)
+       funcName.find("fput") != std::string::npos)
     {
       //Comment out 
       auto range = expr->getSourceRange();
@@ -888,7 +911,7 @@ public:
       auto varType = (*var)->getType();
 
       //add the global param to the function's argument list
-      string newParam;
+      std::string newParam;
       if(varType->isArrayType())
       {
         //if array, we want to take the base type only
@@ -942,7 +965,7 @@ public:
     auto globalVars = globalVarDeclsIt->second;
     for(auto var = globalVars.begin(); var != globalVars.end(); var++)
     {
-      string newArg;
+      std::string newArg;
 
       //find out if we added the global vars to the caller; 
       //if we did, then do not add &, as they are already pointers
@@ -981,7 +1004,7 @@ public:
     if(containsRefToInput(decl))
     {
       //add the input to the function's argument list
-      string newParam;
+      std::string newParam;
       newParam.append("struct ");
       newParam.append(structs_constants::INPUT);
       newParam.append(" *input_gen");
@@ -991,7 +1014,7 @@ public:
     if(containsRefToResult(decl))
     {
       //add the result to the function's argument list
-      string newParam;
+      std::string newParam;
       newParam.append("__global struct"); 
       newParam.append(structs_constants::RESULT);
       newParam.append(" *result_gen");
@@ -1002,7 +1025,7 @@ public:
       {
         if(isResultPrintedChatByChar(result))
         {
-          string newParam2;
+          std::string newParam2;
           newParam2.append("int *res_count_gen");
           addNewParam(decl, newParam2, &rewriter);
         break;
@@ -1036,7 +1059,7 @@ public:
     if(containsRefToInput(funcDecl))
     {
       //if the caller is Main, then add '&', as input isn't a pointer
-      string newArg;
+      std::string newArg;
       if(isMain(caller))
       {
         newArg.append("&");
@@ -1048,7 +1071,7 @@ public:
     if(containsRefToResult(funcDecl))
     {
       //no need to add '&' in main, as result is a pointer
-      string newArg;
+      std::string newArg;
       newArg.append("result_gen");
       addNewArgument(call, newArg, &rewriter);
 
@@ -1057,7 +1080,7 @@ public:
       {
         if(isResultPrintedChatByChar(result))
         {
-          string newArg2;
+          std::string newArg2;
           if(isMain(caller))
           {
             newArg2.append("&");
@@ -1091,7 +1114,7 @@ public:
 
     if(containsRefToStdin(funcDecl))
     {
-      string newArg;
+      std::string newArg;
       if(isMain(caller))
       {
         newArg.append("&");
@@ -1121,7 +1144,7 @@ public:
     if(containsRefToStdin(decl))
     {
       //add the result to the function's argument list
-      string newParam;
+      std::string newParam;
       newParam.append("int *stdin_count_gen");
       addNewParam(decl, newParam, &rewriter);
     }
@@ -1157,7 +1180,7 @@ public:
       if(name != result.testedValue.name)
         return;
       
-      string resultString;
+      std::string resultString;
 
       if(result.testedValue.name == "fputc")
       {
@@ -1167,7 +1190,7 @@ public:
         }
 
         //get the first argument
-        string stringExpr;
+        std::string stringExpr;
         llvm::raw_string_ostream s(stringExpr);
         expr->getArg(0)->printPretty(s, 0, printingPolicy);
 
@@ -1189,7 +1212,7 @@ public:
         if(result.testedValue.resultArg <= 0)
         {
           //we are interested in the return result
-          string callString;
+          std::string callString;
           llvm::raw_string_ostream s(callString);
           expr->printPretty(s, 0, printingPolicy);
 
@@ -1218,7 +1241,7 @@ public:
           //we are interested in an argument of the function
           //find out which the argument is
           auto argument = expr->getArg(result.testedValue.resultArg-1);
-          string stringArg;
+          std::string stringArg;
           llvm::raw_string_ostream arg(stringArg);
           argument->printPretty(arg, 0, printingPolicy);
 
@@ -1403,8 +1426,8 @@ public:
     }
 
     //include for 'structs.h' and special headers
-    string rewriteBuffer = std::string(buffer->begin(), buffer->end());
-    string source = "#include \"";
+    std::string rewriteBuffer = std::string(buffer->begin(), buffer->end());
+    std::string source = "#include \"";
     source.append(filename_constants::STRUCTS_FILENAME);
     source.append("\"\n");
     for(auto inc = includesToAdd.begin(); inc != includesToAdd.end(); inc++)
@@ -1415,28 +1438,28 @@ public:
     }
 
     //comment out includes and typedef bool
-    string line;
-    istringstream bufferStream(rewriteBuffer);
+    std::string line;
+    std::istringstream bufferStream(rewriteBuffer);
     while(getline(bufferStream, line))
     {
-      istringstream iss(line);
-      string token1, token2;
+      std::istringstream iss(line);
+      std::string token1, token2;
       iss >> token1;
       iss >> token2;
 
       //includes (only for system headers)
-      if(token1.find("#include") != string::npos || token2.find("include") != string::npos)
+      if(token1.find("#include") != std::string::npos || token2.find("include") != std::string::npos)
       {
-        if(line.find("<") != string::npos) 
+        if(line.find("<") != std::string::npos) 
           source.append("//");
       }
 
       //typedef bool
-      if(token1.find("typedef") != string::npos)
+      if(token1.find("typedef") != std::string::npos)
       {
-        string token3;
+        std::string token3;
         iss >> token3;
-        if(token3.find("bool") != string::npos)
+        if(token3.find("bool") != std::string::npos)
           source.append("//");
       }
 
@@ -1444,13 +1467,13 @@ public:
       source.append("\n");
     }
 
-    ofstream clFile;
+    std::ofstream clFile;
     clFile.open(testClFilename);
     clFile << source;
     clFile.close();
   }
 
-  virtual unique_ptr<ASTConsumer> CreateASTConsumer(
+  virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(
       CompilerInstance &Compiler, StringRef InFile) override
   {
     rewriter.setSourceMgr(Compiler.getSourceManager(), Compiler.getLangOpts());
@@ -1460,16 +1483,18 @@ public:
 
 void generateKernel(
     ClangTool * _tool,
-    string outputDirectory,
-    map<int, string> _argvIdxToInput,
-    list<string> _stdinInputs,
-    list<struct ResultDeclaration> _results)
+    std::string outputDirectory,
+    std::map<int, std::string> _argvIdxToInput,
+    std::list<struct Declaration> _inputs,
+    std::list<std::string> _stdinInputs,
+    std::list<struct ResultDeclaration> _results)
 {
   llvm::outs() << "Generating kernel code... ";
   
   //set global scope variables
   testClFilename = outputDirectory + "/" + "test.cl";
   argvIdxToInput = _argvIdxToInput;
+  inputs = _inputs;
   stdinInputs = _stdinInputs;
   results = _results;
 

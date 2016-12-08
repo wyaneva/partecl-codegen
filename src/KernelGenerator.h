@@ -21,6 +21,6 @@
 #include "clang/Tooling/Tooling.h"
 #include "Utils.h"
 
-void generateKernel(clang::tooling::ClangTool *, std::string, std::map<int, std::string>, std::list<std::string>, std::list<struct ResultDeclaration>);
+void generateKernel(clang::tooling::ClangTool *, std::string, std::map<int, std::string>, std::list<struct Declaration>, std::list<std::string>, std::list<struct ResultDeclaration>);
 
 #endif
