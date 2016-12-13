@@ -89,7 +89,7 @@ void generatePopulateInputs(
     const std::list<struct Declaration>& inputDecls,
     const std::list<std::string>& stdinInputs)
 {
-  strFile << "void populate_inputs(struct input *input, int argc, char** args, int stdinc, char** stdins)\n";
+  strFile << "void populate_inputs(struct " << structs_constants::INPUT << " *input, int argc, char** args, int stdinc, char** stdins)\n";
   strFile << "{\n";
 
   strFile << "  (*input)." << structs_constants::TEST_CASE_NUM << " = atoi(args[0]);\n";
@@ -132,7 +132,8 @@ void generatePopulateInputs(
     }
     else
     {
-      strFile << "args[" << argsidx << "];\n";
+      llvm::outs() << "POPULATE_INPUTS: Improvising for custom type " << input.type << ".\n";
+      strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
     }
   }
 

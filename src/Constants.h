@@ -29,6 +29,7 @@ namespace config_constants
   const char* const INPUT = "input:";
   const char* const STDIN = "stdin:";
   const char* const RESULT = "result:";
+  const char* const INCLUDE = "include:";
 }
 
 //filenames
@@ -48,9 +49,8 @@ namespace status_constants
 namespace structs_constants
 {
   const char* const ARGC = "argc";
-  const std::string INPUT = "input";
-  //const char* const INPUT = "input";
-  const char* const RESULT = "result";
+  const char* const INPUT = "partecl_input";
+  const char* const RESULT = "partecl_result";
   const char* const TEST_CASE_NUM = "test_case_num";
 }
 

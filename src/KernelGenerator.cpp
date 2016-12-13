@@ -821,9 +821,10 @@ public:
         //comment out the global variable
         auto start = decl->getLocStart();
         auto end = decl->getLocEnd();
-        if(!decl->getType()->isArrayType())
+        //for arrays and initialised vars the end is where it should be
+        if(!decl->getType()->isArrayType() && !decl->getInit())
           end = end.getLocWithOffset(decl->getNameAsString().length());
-
+ 
         commentOut(start, end, &rewriter);
 
         //add it to our list of variables

@@ -36,7 +36,7 @@ static llvm::cl::OptionCategory MscToolCategory("kernel-gen options");
 static llvm::cl::extrahelp CommonHelp(clang::tooling::CommonOptionsParser::HelpMessage);
 
 //private function declarations
-void generateStructs(const std::string&, const std::list<std::string>&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&); 
+void generateStructs(const std::string&, const std::list<std::string>&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&, const std::list<std::string>&); 
 void generateCpuGen(const std::string&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&, const std::list<std::string>&);
 
 int main(int argc, const char **argv)
@@ -51,20 +51,29 @@ int main(int argc, const char **argv)
   std::list<std::string> stdinInputs;
   std::list<struct Declaration> inputDeclarations;
   std::list<struct ResultDeclaration> resultDeclarations;
+  std::list<std::string> includes;
 
   //TODO: the testing params come after '--'
   std::string configFilename = argv[3];
   std::string outputDirectory = argv[4];
+  for(int i = 0; i < argc-2; i++)
+  {
+    if(std::strcmp(argv[i], "--") == 0)
+    {
+      configFilename = argv[i+1];
+      outputDirectory = argv[i+2];
+    }
+  }
 
   //parse the configuration file
-  if(parseConfig(configFilename, argvIdxToInput, stdinInputs, inputDeclarations, resultDeclarations) == status_constants::FAIL)
+  if(parseConfig(configFilename, argvIdxToInput, stdinInputs, inputDeclarations, resultDeclarations, includes) == status_constants::FAIL)
   {
     llvm::outs() << "Failed to parse the configuration file " << configFilename <<". \nTERMINATING!\n";
     return status_constants::FAIL;
   }
 
   //generate the struct file
-  generateStructs(outputDirectory, stdinInputs, inputDeclarations, resultDeclarations);
+  generateStructs(outputDirectory, stdinInputs, inputDeclarations, resultDeclarations, includes);
   //generate CPU code
   generateCpuGen(outputDirectory, inputDeclarations, resultDeclarations, stdinInputs);
 
@@ -78,7 +87,8 @@ void generateStructs(
     const std::string& outputDirectory, 
     const std::list<std::string>& stdinInputs,
     const std::list<struct Declaration>& inputDeclarations,
-    const std::list<struct ResultDeclaration>& resultDeclarations)
+    const std::list<struct ResultDeclaration>& resultDeclarations,
+    const std::list<std::string>& includes)
 {
   llvm::outs() << "Generating memory buffer structs... ";
 
@@ -89,6 +99,11 @@ void generateStructs(
   //write input
   strFile << "#ifndef STRUCTS_H\n";
   strFile << "#define STRUCTS_H\n\n";
+  for(auto& include: includes)
+  {
+    strFile << "#include \"" << include << "\"";
+  }
+  strFile << "\n";
   strFile << "typedef struct " << structs_constants::INPUT <<"\n";
   strFile << "{\n";
   strFile << "  int " << structs_constants::TEST_CASE_NUM << ";\n";
@@ -166,8 +181,8 @@ void generateCpuGen(
   headerFile << "#ifndef CPU_GEN_H\n";
   headerFile << "#define CPU_GEN_H\n";
   headerFile << "#include \"structs.h\"\n\n";
-  headerFile << "void populate_inputs(struct input*, int, char**, int, char**);\n\n";
-  headerFile << "void compare_results(struct result*, struct result*, int);\n\n";
+  headerFile << "void populate_inputs(struct "<< structs_constants::INPUT <<"*, int, char**, int, char**);\n\n";
+  headerFile << "void compare_results(struct "<< structs_constants::RESULT <<"*, struct " << structs_constants::RESULT << "*, int);\n\n";
   headerFile << "#endif\n";
 
   headerFile.close();

@@ -201,6 +201,16 @@ int parseResult(
   return status_constants::SUCCESS;
 }
 
+int parseInclude(
+  std::istringstream& iss,
+  std::list<std::string>& includes)
+{
+  std::string include;
+  iss >> include;
+  includes.push_back(include);
+
+  return status_constants::SUCCESS;
+}
 
 //it parses the configuration file and returns all the necessary data
 int parseConfig(
@@ -208,7 +218,8 @@ int parseConfig(
     std::map<int, std::string>& argvIdxToInput,
     std::list<std::string>& stdinInputs,
     std::list<struct Declaration>& inputDeclarations,
-    std::list<struct ResultDeclaration>& resultDeclarations)
+    std::list<struct ResultDeclaration>& resultDeclarations,
+    std::list<std::string>& includes)
 {
   llvm::outs() << "Parsing configuration file... ";
 
@@ -242,6 +253,13 @@ int parseConfig(
     {
       if(parseResult(line, iss, resultDeclarations) == status_constants::FAIL)
         return status_constants::FAIL;
+    }
+
+    //parse includes
+    else if(annot == config_constants::INCLUDE)
+    {
+      if(parseInclude(iss, includes) == status_constants::SUCCESS)
+        return status_constants::SUCCESS;
     }
 
     else
