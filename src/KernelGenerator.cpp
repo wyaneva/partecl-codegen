@@ -435,12 +435,17 @@ bool getInputParamFromArgvIndex(const ArraySubscriptExpr *argvExpr, std::string 
 {
       //Get the index expression
       const Expr *arrayIndex = argvExpr->getRHS();
-      int index = ((IntegerLiteral*)(arrayIndex))->getValue().getLimitedValue();
+      std::string stringExpr;
+      llvm::raw_string_ostream s(stringExpr);
+      arrayIndex->printPretty(s, 0, printingPolicy);
 
-      if(index < 0)
+      //Is the index expression an integer?
+      int index;
+      std::stringstream indexss(s.str());
+      if(!(indexss >> index))
       {
         //TODO: Better error message
-        llvm::outs() << "the below argv index is not a valid StringLiteral - we cannot convert it to OpenCL.\n";
+        llvm::outs() << "The below argv index is not a valid StringLiteral - we cannot convert it to OpenCL.\n";
         arrayIndex -> dump();
         llvm::outs() << "\n";
         return false;
