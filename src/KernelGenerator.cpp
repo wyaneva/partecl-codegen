@@ -461,6 +461,34 @@ bool getInputParamFromArgvIndex(const ArraySubscriptExpr *argvExpr, std::string 
       return true;
 }
 
+bool isInputArgv()
+{
+  for(auto& input: inputs)
+  {
+    if(input.name == "argv")
+      return true;
+  }
+
+  return false;
+}
+
+void subtractOneIfArgvInput(const ArraySubscriptExpr *expr, Rewriter& rewriter)
+{
+  if(!isInputArgv())
+    return;
+
+  const Expr *arrayIndex = expr->getRHS();
+  std::string stringExpr;
+  llvm::raw_string_ostream s(stringExpr);
+  arrayIndex->printPretty(s, 0, printingPolicy);
+  std::stringstream newIndex;
+  newIndex << s.str() << " - 1";
+
+  auto range = arrayIndex->getSourceRange();
+  int length = rewriter.getRangeSize(range);
+  rewriter.ReplaceText(range.getBegin(), length, newIndex.str());
+}
+
 /* AST Matchers & Handlers */
 StatementMatcher argvMatcher = arraySubscriptExpr(hasBase(ignoringImpCasts(declRefExpr(to(varDecl(hasName("argv")))).bind("argvVar")))).bind("argvArray");
 class ArgvHandler : public MatchFinder::MatchCallback
@@ -483,6 +511,11 @@ public:
           SourceRange range = expr->getSourceRange();
           int length = rewriter.getRangeSize(range);
           rewriter.ReplaceText(range.getBegin(), length, text);
+        }
+        else
+        {
+          //leave reference to argv, but if it is an input, then we need to subtract 1 from the index expression
+          subtractOneIfArgvInput(expr, rewriter);
         }
       }
     }
@@ -514,6 +547,11 @@ public:
       argvIdxToIsReplaced[expr->getIdx()] = true;
 
       shouldReplace = getInputParamFromArgvIndex(expr, &newText);
+      if(!shouldReplace)
+      {
+          //leave reference to argv, but if it is an input, then we need to subtract 1 from the index expression
+          subtractOneIfArgvInput(expr, rewriter);
+      }
     }
 
     if(const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>("argvInAtoi"))

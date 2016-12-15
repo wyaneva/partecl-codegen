@@ -111,15 +111,8 @@ void generateStructs(
 
   for(auto& currentInput: inputDeclarations)
   {
-    //TODO: Decide on an intelligent way to determine the size of the static decls
     std::string type = currentInput.type;
-    auto starChar = type.find("*");
-    if(starChar != std::string::npos)
-    {
-      type.erase(starChar);
-      strFile << "  " << type << " " << currentInput.name << "[500];\n";
-    }
-    else if(currentInput.isArray)
+    if(currentInput.isArray)
     {
       strFile << "  " << type << " " << currentInput.name << "[" << currentInput.size << "];\n";
     }

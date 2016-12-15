@@ -23,7 +23,7 @@ std::string generatePrintInt(
     const std::string& name)
 {
   std::stringstream ss;
-  ss << "printf(\"TC %d: %d\\n\", curres." << structs_constants::TEST_CASE_NUM << ", curres." << name << ");\n";
+  ss << "printf(\"TC %d %d\\n\", curres." << structs_constants::TEST_CASE_NUM << ", curres." << name << ");\n";
   return ss.str();
 }
 
@@ -32,7 +32,7 @@ std::string generatePrintInts(
     const int& size)
 {
   std::stringstream ss;
-  ss << "printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM << ");\n";
+  ss << "printf(\"TC %d \", curres." << structs_constants::TEST_CASE_NUM << ");\n";
   ss << "for(int k = 0; k < " << size << "; k++)\n";
   ss << "{\n";
   ss << "  int curel = " << "curres." << name << "[k];\n";
@@ -128,7 +128,10 @@ void generatePopulateInputs(
     }
     else if(input.type == "char *" || input.type == "char*")
     {
+      strFile << "  {\n";
+      strFile << "    (*input)." << name << " = (char *)malloc(sizeof(char)*(1+strlen(args[" << argsidx << "])));\n";
       strFile << "    strcpy((*input)." << name << ", args[" << argsidx << "]);\n";
+      strFile << "  }\n";
     }
     else
     {
