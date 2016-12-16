@@ -258,8 +258,8 @@ int parseConfig(
     //parse includes
     else if(annot == config_constants::INCLUDE)
     {
-      if(parseInclude(iss, includes) == status_constants::SUCCESS)
-        return status_constants::SUCCESS;
+      if(parseInclude(iss, includes) == status_constants::FAIL)
+        return status_constants::FAIL;
     }
 
     else

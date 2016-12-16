@@ -101,7 +101,7 @@ void generateStructs(
   strFile << "#define STRUCTS_H\n\n";
   for(auto& include: includes)
   {
-    strFile << "#include \"" << include << "\"";
+    strFile << "#include \"" << include << "\"\n";
   }
   strFile << "\n";
   strFile << "typedef struct " << structs_constants::INPUT <<"\n";

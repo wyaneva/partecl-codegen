@@ -727,7 +727,7 @@ public:
         std::string stringLiteral;
         llvm::raw_string_ostream s(stringLiteral);
         globalVar->print(s, 0, true);
-      bbInsertion << s.str() << ";\n";
+        bbInsertion << s.str() << ";\n";
       }
     }
 
