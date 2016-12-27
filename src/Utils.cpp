@@ -21,27 +21,29 @@
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/Tooling.h"
 
-using namespace std;
-using namespace clang;
-
-string read_file(string filename)
+bool contains(const std::string& str1, const std::string& str2)
 {
-  ifstream t(filename);
-  string str;
+  return str1.find(str2) != std::string::npos;
+}
 
-  t.seekg(0, ios::end);
+std::string read_file(std::string filename)
+{
+  std::ifstream t(filename);
+  std::string str;
+
+  t.seekg(0, std::ios::end);
   str.reserve(t.tellg());
-  t.seekg(0, ios::beg);
+  t.seekg(0, std::ios::beg);
 
-  str.assign(istreambuf_iterator<char>(t), istreambuf_iterator<char>());
+  str.assign(std::istreambuf_iterator<char>(t), std::istreambuf_iterator<char>());
 
   return str;
 }
 
-string getDeclAsString(Decl *decl, Rewriter rewriter)
+std::string getDeclAsString(clang::Decl *decl, clang::Rewriter rewriter)
 {
-  SourceRange declRange = decl->getSourceRange();
-  string declString;
+  clang::SourceRange declRange = decl->getSourceRange();
+  std::string declString;
 
   int rangeSize = rewriter.getRangeSize(declRange);
   if(rangeSize == -1)
@@ -49,7 +51,7 @@ string getDeclAsString(Decl *decl, Rewriter rewriter)
     return "";
   }
 
-  SourceLocation locStart = declRange.getBegin();
+  clang::SourceLocation locStart = declRange.getBegin();
   const char *strStart = rewriter.getSourceMgr().getCharacterData(locStart);
 
   declString.assign(strStart, rangeSize);
@@ -57,10 +59,10 @@ string getDeclAsString(Decl *decl, Rewriter rewriter)
   return declString;
 }
 
-string getStmtAsString(Stmt *stmt, Rewriter rewriter)
+std::string getStmtAsString(clang::Stmt *stmt, clang::Rewriter rewriter)
 {
-  SourceRange range = stmt->getSourceRange();
-  string stmtString;
+  clang::SourceRange range = stmt->getSourceRange();
+  std::string stmtString;
 
   int rangeSize = rewriter.getRangeSize(range);
   if(rangeSize == -1)
@@ -68,7 +70,7 @@ string getStmtAsString(Stmt *stmt, Rewriter rewriter)
     return "";
   }
 
-  SourceLocation locStart = range.getBegin();
+  clang::SourceLocation locStart = range.getBegin();
   const char *strStart = rewriter.getSourceMgr().getCharacterData(locStart);
 
   stmtString.assign(strStart, rangeSize);

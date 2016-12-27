@@ -18,6 +18,7 @@
 #include <string>
 #include "Constants.h"
 #include "CpuCodeGenerator.h"
+#include "Utils.h"
 
 std::string generatePrintInt(
     const std::string& name)
@@ -126,15 +127,15 @@ void generatePopulateInputs(
 
     //value
     //TODO: Add handling for other types
-    if(input.type == "int")
+    if(contains(input.type, "int"))
     {
       strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
     }
-    else if(input.type == "bool")
+    else if(contains(input.type, "bool"))
     {
       strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
     }
-    else if(input.type == "char *" || input.type == "char*")
+    else if(contains(input.type, "char *") || contains(input.type, "char*"))
     {
       strFile << "  {\n";
       strFile << "    (*input)." << name << " = (char *)malloc(sizeof(char)*(1+strlen(args[" << argsidx << "])));\n";

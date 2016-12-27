@@ -48,6 +48,7 @@ PrintingPolicy printingPolicy(langOpts);
 std::string testClFilename;
 std::map<int, std::string> argvIdxToInput;
 std::map<const Expr *, bool> argvIdxToIsReplaced;
+std::map<const SourceLocation, bool> locationToPointerDereferenced;
 std::list<struct Declaration> inputs;
 std::list<std::string> stdinInputs;
 std::list<struct ResultDeclaration> results;
@@ -193,7 +194,6 @@ void addNewArgument(
 
 void commentOut(SourceRange range, Rewriter *rewriter)
 {
-  llvm::outs() << range.getBegin().printToString(rewriter->getSourceMgr()) << " " << range.getEnd().printToString(rewriter->getSourceMgr()); 
   rewriter->InsertText(range.getBegin(), "/*");
   rewriter->InsertText(range.getEnd().getLocWithOffset(2), "*/");
 }
@@ -736,7 +736,10 @@ public:
     {
       if(input.isArray)
       {
-        bbInsertion << "  " << input.type << " " << input.name << "[" << input.size << "];\n";
+        bbInsertion << "  "; 
+        if(input.isConst)
+          bbInsertion << "const ";
+        bbInsertion << input.type << " " << input.name << "[" << input.size << "];\n";
         bbInsertion << "  for(int i = 0; i < " << input.size << "; i++)\n";
         bbInsertion << "  {\n";
         bbInsertion << "    " << input.name << "[i] = input_gen." << input.name << "[i];\n";
@@ -902,8 +905,16 @@ public:
     auto varType = expr->getType();
     if(!varType->isArrayType())
     {
-      rewriter.InsertText(expr->getLocStart(), "(*");
-      rewriter.InsertText(expr->getLocStart().getLocWithOffset(expr->getDecl()->getNameAsString().size()), ")");
+      //gets the correct macro location when the expression is in a macro
+      const auto exprLoc = rewriter.getSourceMgr().getSpellingLoc(expr->getLocStart());
+
+      //this map is used when we have a macro used in multiple places so we do not dereference multiple times
+      if(!locationToPointerDereferenced[exprLoc])
+      {
+        rewriter.InsertText(exprLoc, "(*");
+        rewriter.InsertText(exprLoc.getLocWithOffset(expr->getDecl()->getNameAsString().size()), ")");
+        locationToPointerDereferenced[exprLoc] = true;
+      }
     }
 
     //check if the global var was already added to the argument list

@@ -19,12 +19,35 @@
 #include "ConfigParser.h"
 #include "Constants.h"
 
+int parseType(
+    const std::string& line,
+    std::istringstream& iss,
+    struct Declaration& decl)
+{
+  std::string parse;
+  iss >> parse;
+
+  //not a const, just the type
+  if(parse != "const")
+  {
+    decl.isConst = false;
+    decl.type = parse;
+    return status_constants::SUCCESS;
+  }
+
+  //else keep parsing
+  decl.isConst = true;
+  iss >> parse;
+  decl.type = parse;
+
+  return status_constants::SUCCESS;
+}
+
 int parseTestedValueFunction(
     const std::string& line,
     std::istringstream& iss, 
     struct TestedValue& testedValue)
 {
-  
   testedValue.type = TestedValueType::functionCall;
   iss >> testedValue.name;
 
@@ -130,7 +153,8 @@ int parseInput(
     std::list<struct Declaration>& inputDeclarations)
 {
   struct Declaration input;
-  iss >> input.type; 
+  parseType(line, iss, input);
+  //iss >> input.type; 
 
   //parse the input
   if(parsePotentialArray(line, iss, input) == status_constants::FAIL)
@@ -150,11 +174,12 @@ int parseInput(
 }
 
 int parseStdin(
+    const std::string& line,
     std::istringstream& iss,
     std::list<std::string>& stdinInputs)
 {
-  std::string type, name;
-  iss >> type >> name;
+  std::string name;
+  iss >> name;
 
   //add to list of inputs
   stdinInputs.push_back(name);
@@ -168,7 +193,7 @@ int parseResult(
     std::list<struct ResultDeclaration>& resultDeclarations)
 {
   struct ResultDeclaration result;
-  iss >> result.declaration.type;
+  parseType(line, iss, result.declaration);
       
   if(parsePotentialArray(line, iss, result.declaration) == status_constants::FAIL)
     return status_constants::FAIL;
@@ -244,7 +269,7 @@ int parseConfig(
     //parse stdin inputs
     else if(annot == config_constants::STDIN)
     {
-      if(parseStdin(iss, stdinInputs) == status_constants::FAIL)
+      if(parseStdin(line, iss, stdinInputs) == status_constants::FAIL)
         return status_constants::FAIL;
     }
 

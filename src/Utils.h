@@ -21,6 +21,7 @@
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/Tooling.h"
 
+bool contains(const std::string&, const std::string&);
 std::string read_file(std::string filename);
 std::string getDeclAsString(clang::Decl *, clang::Rewriter);
 std::string getStmtAsString(clang::Stmt *, clang::Rewriter);
@@ -43,6 +44,7 @@ static struct Declaration
   std::string type;
   std::string name;
   bool isArray;
+  bool isConst;
   int size; // set to -1 if not array
 } Declaration;
 
