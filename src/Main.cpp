@@ -35,17 +35,26 @@
 static llvm::cl::OptionCategory MscToolCategory("kernel-gen options");
 static llvm::cl::extrahelp CommonHelp(clang::tooling::CommonOptionsParser::HelpMessage);
 
+//ParTeCL-CodeGen requires the following command line options:
+//  config filename
+//  output directory
+static llvm::cl::opt<std::string> ConfigFilename(
+    "config", 
+    llvm::cl::desc("Specify config filename"), 
+    llvm::cl::value_desc("filename"), 
+    llvm::cl::Required);
+static llvm::cl::opt<std::string> OutputDir(
+    "output", 
+    llvm::cl::desc("Specify output directory"), 
+    llvm::cl::value_desc("dir"), llvm::cl::Required);
+
 //private function declarations
 void generateStructs(const std::string&, const std::list<std::string>&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&, const std::list<std::string>&); 
 void generateCpuGen(const std::string&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&, const std::list<std::string>&);
 
 int main(int argc, const char **argv)
 {
-  if(argc <= 4)
-  {
-    llvm::outs() << "Correct usage: \n ./partecl-codegen [source filename] -- [config filename] [output directory] \n Exiting execution without generating anything. \n";
-    return 0;
-  }
+  clang::tooling::CommonOptionsParser OptionsParser(argc, argv, MscToolCategory);
 
   std::map<int, std::string> argvIdxToInput;
   std::list<std::string> stdinInputs;
@@ -53,34 +62,22 @@ int main(int argc, const char **argv)
   std::list<struct ResultDeclaration> resultDeclarations;
   std::list<std::string> includes;
 
-  //TODO: the testing params come after '--'
-  std::string configFilename = argv[3];
-  std::string outputDirectory = argv[4];
-  for(int i = 0; i < argc-2; i++)
-  {
-    if(std::strcmp(argv[i], "--") == 0)
-    {
-      configFilename = argv[i+1];
-      outputDirectory = argv[i+2];
-    }
-  }
-
   //parse the configuration file
-  if(parseConfig(configFilename, argvIdxToInput, stdinInputs, inputDeclarations, resultDeclarations, includes) == status_constants::FAIL)
+  if(parseConfig(ConfigFilename, argvIdxToInput, stdinInputs, inputDeclarations, resultDeclarations, includes) == status_constants::FAIL)
   {
-    llvm::outs() << "Failed to parse the configuration file " << configFilename <<". \nTERMINATING!\n";
+    llvm::outs() << "\nFailed to parse the configuration file " << ConfigFilename <<". \nTERMINATING!\n";
     return status_constants::FAIL;
   }
 
   //generate the struct file
-  generateStructs(outputDirectory, stdinInputs, inputDeclarations, resultDeclarations, includes);
+  generateStructs(OutputDir, stdinInputs, inputDeclarations, resultDeclarations, includes);
   //generate CPU code
-  generateCpuGen(outputDirectory, inputDeclarations, resultDeclarations, stdinInputs);
+  generateCpuGen(OutputDir, inputDeclarations, resultDeclarations, stdinInputs);
 
   //generate kernel
-  clang::tooling::CommonOptionsParser OptionsParser(argc, argv, MscToolCategory);
   clang::tooling::ClangTool Tool(OptionsParser.getCompilations(), OptionsParser.getSourcePathList());
-  generateKernel(&Tool, outputDirectory, argvIdxToInput, inputDeclarations, stdinInputs, resultDeclarations);
+
+  generateKernel(&Tool, OutputDir, argvIdxToInput, inputDeclarations, stdinInputs, resultDeclarations);
 }
 
 void generateStructs(

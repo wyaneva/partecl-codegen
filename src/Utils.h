@@ -74,7 +74,9 @@ static std::map<std::string, std::string> functionToHeaderFile =
   {"tolower", "cl-ctype.h"},
   {"toupper", "cl-ctype.h"},
   {"atoi", "cl-atoi.h"},
+  {"atol", "cl-atoi.h"},
   {"fgets", "cl-fgets.h"},
+  {"strcmp", "cl-string.h"},
   {"strlen", "cl-string.h"}
 };
 

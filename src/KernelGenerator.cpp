@@ -310,6 +310,10 @@ void addGlobalVarsToFunctionDecl(
     return;
 
   auto callerDecls = callerDeclsTuple->second;
+  llvm::outs() << "Caller decls " << funcDecl->getNameAsString() << " " << callerDecls.size() << " " << globalVars.size() << "\n";
+  for(auto& globalVar: globalVars)
+    llvm::outs() << globalVar->getNameAsString() << " " << "\n";
+
   for(auto& callerDecl : callerDecls)
   {
     if(isMain(callerDecl))
@@ -387,10 +391,11 @@ void addStdinToFunctionDecl(const FunctionDecl *funcDecl)
 //builds the call graph from callee - caller map
 void buildCallGraph()
 {
-  for(auto funcCall = funcCallToCallerDecl.begin(); funcCall != funcCallToCallerDecl.end(); funcCall++)
+  llvm::outs() << "Call " << funcCallToCallerDecl.size() << "\n";
+  for(auto& funcCall : funcCallToCallerDecl)
   {
-    auto funcDecl = funcCall->first->getDirectCallee();
-    funcDeclToCallerDecls[funcDecl].push_back(funcCall->second);
+    auto funcDecl = funcCall.first->getDirectCallee();
+    funcDeclToCallerDecls[funcDecl].push_back(funcCall.second);
   }
 }
 
@@ -400,25 +405,39 @@ void buildCallGraph()
 // 3. use stdin
 void findAllFunctionsWhichUseSpecialVars()
 {
+  llvm::outs() << "BEGIN " << funcDeclToCallerDecls.size() << "\n";
+  int i = 0;
   for(auto& funcDeclTuple : funcDeclToCallerDecls)
   {
+    i++;
+    //llvm::outs() << "IN\n";
     auto funcDecl = funcDeclTuple.first;
+    //llvm::outs() << "IN " << i << "\n";
 
     //TODO: remove doing the search in funcToGlobalVars twice
     if(containsRefToGlobalVar(funcDecl))
     {
+      //llvm::outs() << "IN IN" << i << "\n";
       auto globalVars = funcToGlobalVars.find(funcDecl)->second;
       addGlobalVarsToFunctionDecl(funcDecl, globalVars);
     }
 
+    //llvm::outs() << "IN2 " << i << "\n";
+
     if(containsRefToInput(funcDecl))
       addInputAndResultsToFunctionDecl(funcDecl, INPUT_1);
+
+    //llvm::outs() << "IN3 " << i << "\n";
 
     if(containsRefToResult(funcDecl))
       addInputAndResultsToFunctionDecl(funcDecl, RESULT_1);
 
+    //llvm::outs() << "IN4 " << i << "\n";
+
     if(containsRefToStdin(funcDecl))
       addStdinToFunctionDecl(funcDecl);
+
+    //llvm::outs() << "IN5 " << i << "\n";
   }
 }
 
@@ -862,7 +881,9 @@ public:
     if(const VarDecl *decl = Result.Nodes.getNodeAs<VarDecl>("globalVar"))
     {
       //find out if the declaration is global
-      if(decl->isFileVarDecl() && !decl->hasExternalStorage())
+      if(decl->isFileVarDecl() && 
+         !decl->hasExternalStorage() &&
+         !decl->isExternC())
       {
         //comment out the global variable
         auto start = decl->getLocStart();
@@ -1454,16 +1475,25 @@ public:
 
   void HandleTranslationUnit(ASTContext &Context) override
   {
+    llvm::outs() << "Start!\n";
     argvMatchFinder.matchAST(Context);
+    llvm::outs() << "1!\n";
     ioMatchFinder.matchAST(Context);
+    llvm::outs() << "2!\n";
     discoverGlobalVarsMatchFinder.matchAST(Context);
+    llvm::outs() << "3!\n";
 
     buildCallGraph();
+    llvm::outs() << "3.5!\n";
     findAllFunctionsWhichUseSpecialVars();
+    llvm::outs() << "4!\n";
 
     rewriteGlobalVarsMatchFinder.matchAST(Context);
+    llvm::outs() << "5!\n";
     mainMatchFinder.matchAST(Context);
+    llvm::outs() << "6!\n";
     includesMatchFinder.matchAST(Context);
+    llvm::outs() << "7!\n";
   }
 };
 
