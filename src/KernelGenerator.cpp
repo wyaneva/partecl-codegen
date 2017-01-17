@@ -475,20 +475,23 @@ bool isInputArgv()
 
 void subtractOneIfArgvInput(const ArraySubscriptExpr *expr, Rewriter& rewriter)
 {
-  printf("Sub one!\n");
   if(!isInputArgv())
     return;
 
+  //get the current array index expression
   const Expr *arrayIndex = expr->getRHS();
   std::string stringExpr;
   llvm::raw_string_ostream s(stringExpr);
   arrayIndex->printPretty(s, 0, printingPolicy);
+
+  //add -1 to it
   std::stringstream newIndex;
   newIndex << s.str() << " - 1";
 
-  auto range = arrayIndex->getSourceRange();
-  int length = rewriter.getRangeSize(range);
-  rewriter.ReplaceText(range.getBegin(), length, newIndex.str());
+  //replace it
+  auto arrayLoc = rewriter.getSourceMgr().getSpellingLoc(arrayIndex->getLocStart());
+  int length = s.str().length();
+  rewriter.ReplaceText(arrayLoc, length, newIndex.str());
 }
 
 /* AST Matchers & Handlers */
