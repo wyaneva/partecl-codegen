@@ -61,7 +61,8 @@ std::string generatePrintCalls(
   else
   {
     //TODO: Handle other types; currently default to int
-    llvm::outs() << "\ngenerateCompareResults: I don't know how to print results of type " << resultDecl.declaration.type << "\n";
+    llvm::outs() << "\ngenerateCompareResults: I don't know how to print results of type '" << resultDecl.declaration.type 
+        << "'. Defaulting to 'int'.\n";
     if(resultDecl.declaration.isArray)
     {
       str = generatePrintInts(resultDecl.declaration.name, resultDecl.declaration.size);
