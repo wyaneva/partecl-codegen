@@ -50,6 +50,7 @@ std::map<int, std::string> argvIdxToInput;
 std::map<const Expr *, bool> argvIdxToIsReplaced;
 std::map<const SourceLocation, bool> locationToPointerDereferenced;
 std::list<struct Declaration> inputs;
+std::map<std::string, bool> inputsToIsAddedDeclaration;
 std::list<std::string> stdinInputs;
 std::list<struct ResultDeclaration> results;
 
@@ -254,15 +255,35 @@ bool isGlobalVar(const DeclRefExpr *expr)
   return false;
 }
 
-bool isTestInput(const VarDecl *var)
+bool isTestInput(const VarDecl *var, struct Declaration& inputRef)
 {
   for(auto& input: inputs)
   {
     if(var->getNameAsString() == input.name)
+    {
+      inputRef = input;
       return true;
+    }
   }
 
   return false;
+}
+
+void addAssignmentForArrayTestInputs(const struct Declaration& input, std::stringstream& bbInsertion)
+{
+  if(input.isArray)
+  {
+    bbInsertion << "  "; 
+    if(input.isConst)
+      bbInsertion << "const ";
+    bbInsertion << input.type << " " << input.name << "[" << input.size << "];\n";
+    bbInsertion << "  for(int i = 0; i < " << input.size << "; i++)\n";
+    bbInsertion << "  {\n";
+    bbInsertion << "    " << input.name << "[i] = input_gen." << input.name << "[i];\n";
+    bbInsertion << "  }\n";
+
+    inputsToIsAddedDeclaration[input.name] = true;
+  }
 }
 
 bool containsRefToGlobalVar(const FunctionDecl *decl)
@@ -726,30 +747,33 @@ public:
     bbInsertion << "\n";
     for(auto& globalVar: globalVars)
     {
-      if(!isTestInput(globalVar))
+      struct Declaration inputRef;
+      if(!isTestInput(globalVar, inputRef))
       {
+        //get original declaration
         bbInsertion << "  ";
         std::string stringLiteral;
         llvm::raw_string_ostream s(stringLiteral);
         globalVar->print(s, 0, true);
+
+        //if an array, make it private
+        if(globalVar->getType()->isArrayType())
+          bbInsertion << "private ";
+
         bbInsertion << s.str() << ";\n";
+      }
+      else
+      {
+        //If an array based test input, add assignment here
+        addAssignmentForArrayTestInputs(inputRef, bbInsertion);
       }
     }
 
-    //add assignment for array based inputs
+    //add assignment for array based test inputs
     for(auto& input: inputs)
     {
-      if(input.isArray)
-      {
-        bbInsertion << "  "; 
-        if(input.isConst)
-          bbInsertion << "const ";
-        bbInsertion << input.type << " " << input.name << "[" << input.size << "];\n";
-        bbInsertion << "  for(int i = 0; i < " << input.size << "; i++)\n";
-        bbInsertion << "  {\n";
-        bbInsertion << "    " << input.name << "[i] = input_gen." << input.name << "[i];\n";
-        bbInsertion << "  }\n";
-      }
+      if(!inputsToIsAddedDeclaration[input.name])
+        addAssignmentForArrayTestInputs(input, bbInsertion);
     }
 
     //TODO: Handle multiple results more gracefully for fputc
@@ -983,9 +1007,10 @@ public:
       std::string newParam;
       if(varType->isArrayType())
       {
-        //if array, we want to take the base type only
+        //if array, we want to take the base type only and add 'private'
         //eg. int, not int[4]
-        newParam = varType->getAsArrayTypeUnsafe()->getElementType().getAsString();
+        newParam = "private ";
+        newParam.append(varType->getAsArrayTypeUnsafe()->getElementType().getAsString());
       }
       else
       {
