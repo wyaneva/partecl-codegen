@@ -747,8 +747,9 @@ public:
     bbInsertion << "\n";
     for(auto& globalVar: globalVars)
     {
+      //this is not a test input or it is one which isn't an array
       struct Declaration inputRef;
-      if(!isTestInput(globalVar, inputRef))
+      if(!isTestInput(globalVar, inputRef) || !inputRef.isArray)
       {
         //get original declaration
         bbInsertion << "  ";
