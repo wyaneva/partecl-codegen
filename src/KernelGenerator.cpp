@@ -276,11 +276,15 @@ void addAssignmentForArrayTestInputs(const struct Declaration& input, std::strin
     bbInsertion << "  "; 
     if(input.isConst)
       bbInsertion << "const ";
+    bbInsertion << input.type << " *" << input.name <<";\n";
+    bbInsertion << "  " << input.name << " = input_gen." << input.name << ";\n";
+    /*
     bbInsertion << input.type << " " << input.name << "[" << input.size << "];\n";
     bbInsertion << "  for(int i = 0; i < " << input.size << "; i++)\n";
     bbInsertion << "  {\n";
     bbInsertion << "    " << input.name << "[i] = input_gen." << input.name << "[i];\n";
     bbInsertion << "  }\n";
+    */
 
     inputsToIsAddedDeclaration[input.name] = true;
   }
