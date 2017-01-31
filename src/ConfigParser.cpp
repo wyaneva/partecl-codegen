@@ -251,6 +251,11 @@ int parseConfig(
   //open the file
   std::ifstream infile(configFilename);
   std::string line;
+  if(!infile.is_open())
+  {
+    llvm::outs() << "Error opening config file: " << configFilename << ".\n";
+    return status_constants::FAIL;
+  }
 
   //parse line by line
   while(getline(infile, line))
