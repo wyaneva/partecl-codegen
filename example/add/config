@@ -1,4 +1,3 @@
-function-name: add RET
 input: int a 1
 input: int b 2
-result: int result
+result: int result function: add RET
