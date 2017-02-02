@@ -745,7 +745,7 @@ public:
     bbInsertion << "  struct " << structs_constants::INPUT << " input_gen = inputs[idx];\n";
     bbInsertion << "  __global struct " << structs_constants::RESULT << " *result_gen = &results[idx];\n";
     bbInsertion << "  int " << structs_constants::ARGC << " = input_gen.argc;\n";
-    bbInsertion << "  (*result_gen)." << structs_constants::TEST_CASE_NUM << " = input_gen." << structs_constants::TEST_CASE_NUM << ";\n";
+    bbInsertion << "  result_gen->" << structs_constants::TEST_CASE_NUM << " = input_gen." << structs_constants::TEST_CASE_NUM << ";\n";
 
     //add declarations for global variables
     bbInsertion << "\n";
@@ -799,7 +799,7 @@ public:
       //character termination in case result is printed char by char
       if(isResultPrintedChatByChar(result))
       {
-        eInsertion << "  *((*result_gen)." << result.declaration.name << " + res_count_gen) = \'\\0\';\n";
+        eInsertion << "  *(result_gen->" << result.declaration.name << " + res_count_gen) = \'\\0\';\n";
       }
       
       //when the tested value is a variable, add an assignment to the result struct
@@ -811,7 +811,7 @@ public:
           eInsertion << std::to_string(result.declaration.size);
           eInsertion << "; i++)\n";
           eInsertion << "  {\n";
-          eInsertion << "    (*result_gen).";
+          eInsertion << "    result_gen->";
           eInsertion << result.declaration.name;
           eInsertion << "[i] = ";
           eInsertion << result.testedValue.name;
@@ -820,7 +820,7 @@ public:
         }
         else
         {
-          eInsertion << "  (*result_gen).";
+          eInsertion << "  result_gen->";
           eInsertion << result.declaration.name;
           eInsertion << " = ";
           eInsertion << result.testedValue.name;
@@ -1291,7 +1291,7 @@ public:
         llvm::raw_string_ostream s(stringExpr);
         expr->getArg(0)->printPretty(s, 0, printingPolicy);
 
-        resultString.append("*((*result_gen).");
+        resultString.append("*(result_gen->");
         resultString.append(resultDecl.declaration.name);
         resultString.append(" + *res_count_gen) = ");
         resultString.append(s.str());
@@ -1314,7 +1314,7 @@ public:
           expr->printPretty(s, 0, printingPolicy);
 
           //TODO: read results from test-params
-          resultString = "\n(*result_gen).";
+          resultString = "\nresult_gen->";
           resultString.append(resultDecl.declaration.name);
           resultString.append(" = ");
           resultString.append(s.str());
@@ -1349,7 +1349,7 @@ public:
             //TODO: Decide on the number of iterations
             resultString.append("\nfor(int i = 0; i < 500; i++)");
             resultString.append("{\n");
-            resultString.append("  *((*result_gen).");
+            resultString.append("  *(result_gen->");
             resultString.append(resultDecl.declaration.name);
             resultString.append(" + i) = *(");
             resultString.append(arg.str());
@@ -1359,7 +1359,7 @@ public:
           else
           {
             //not a pointer
-            resultString = "\n(*result_gen).";
+            resultString = "\nresult_gen->";
             resultString.append(resultDecl.declaration.name);
             resultString.append(" = ");
             resultString.append(arg.str());
