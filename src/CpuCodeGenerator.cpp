@@ -152,6 +152,7 @@ void generatePopulateInputs(
 
   for(auto& stdinArg: stdinInputs)
   {
+    i++;
     strFile << "  if(stdinc >= " << i+1 << ")\n";
     strFile << "    strcpy((*input)." << stdinArg << ", stdins[" << i << "]);\n";
   }
