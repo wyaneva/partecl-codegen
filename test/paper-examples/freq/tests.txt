@@ -1,0 +1,5 @@
+1 y < "My name is Vanya."
+2 a < ""
+3 b < "bbbbbbbbbbbbbbbbb"
+4 0 < "0 + 0 = 0"
+5 ! < "Hello, World!"
