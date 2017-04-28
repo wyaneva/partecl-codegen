@@ -49,15 +49,15 @@ static llvm::cl::opt<std::string> OutputDir(
     llvm::cl::value_desc("dir"), llvm::cl::Required);
 
 //private function declarations
-void generateStructs(const std::string&, const std::list<std::string>&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&, const std::list<std::string>&); 
-void generateCpuGen(const std::string&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&, const std::list<std::string>&);
+void generateStructs(const std::string&, const std::list<struct Declaration>&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&, const std::list<std::string>&); 
+void generateCpuGen(const std::string&, const std::list<struct Declaration>&, const std::list<struct ResultDeclaration>&, const std::list<struct Declaration>&);
 
 int main(int argc, const char **argv)
 {
   clang::tooling::CommonOptionsParser OptionsParser(argc, argv, MscToolCategory);
 
   std::map<int, std::string> argvIdxToInput;
-  std::list<std::string> stdinInputs;
+  std::list<struct Declaration> stdinInputs;
   std::list<struct Declaration> inputDeclarations;
   std::list<struct ResultDeclaration> resultDeclarations;
   std::list<std::string> includes;
@@ -82,7 +82,7 @@ int main(int argc, const char **argv)
 
 void generateStructs(
     const std::string& outputDirectory, 
-    const std::list<std::string>& stdinInputs,
+    const std::list<struct Declaration>& stdinInputs,
     const std::list<struct Declaration>& inputDeclarations,
     const std::list<struct ResultDeclaration>& resultDeclarations,
     const std::list<std::string>& includes)
@@ -121,8 +121,9 @@ void generateStructs(
 
   for(auto& stdinArg: stdinInputs)
   {
-    strFile << "  " << "char " << " " << stdinArg << "[500];\n";
+    strFile << "  " << stdinArg.type << " " << stdinArg.name << ";\n";
   }
+
   strFile << "} " << structs_constants::INPUT << ";\n\n";
 
   //write result
@@ -159,7 +160,7 @@ void generateCpuGen(
     const std::string& outputDirectory, 
     const std::list<struct Declaration>& inputs, 
     const std::list<struct ResultDeclaration>& results, 
-    const std::list<std::string>& stdinInputs)
+    const std::list<struct Declaration>& stdinInputs)
 {
   llvm::outs() << "Generating CPU code... ";
 

@@ -51,7 +51,7 @@ std::map<const Expr *, bool> argvIdxToIsReplaced;
 std::map<const SourceLocation, bool> locationToPointerDereferenced;
 std::list<struct Declaration> inputs;
 std::map<std::string, bool> inputsToIsAddedDeclaration;
-std::list<std::string> stdinInputs;
+std::list<struct Declaration> stdinInputs;
 std::list<struct ResultDeclaration> results;
 
 //a list of all the global vars
@@ -104,7 +104,7 @@ void addNewParam(
 
   //TODO: return if externally defined functions
   auto funcName = funcDecl->getNameAsString();
-  if(funcName == "fgets")
+  if(funcName == "fgets" || funcName == "fgetc")
     return;
 
   int numParams = funcDecl->getNumParams();
@@ -668,7 +668,7 @@ public:
     else
       inputRef.append("(*input_gen)."); 
 
-    inputRef.append(*stdinInput); 
+    inputRef.append(stdinInput->name); 
     replaceArgument(stdinCallExpr, stdinArgExpr, inputRef, &rewriter); 
 
     /* commentOutLine(stdinExpr->getSourceRange(), &rewriter); 
@@ -1583,7 +1583,7 @@ void generateKernel(
     std::string outputDirectory,
     std::map<int, std::string> _argvIdxToInput,
     std::list<struct Declaration> _inputs,
-    std::list<std::string> _stdinInputs,
+    std::list<struct Declaration> _stdinInputs,
     std::list<struct ResultDeclaration> _results)
 {
   llvm::outs() << "Generating kernel code... ";
