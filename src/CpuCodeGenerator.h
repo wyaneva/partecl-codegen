@@ -22,7 +22,7 @@
 
 void generateCompareResults(std::ofstream&, const std::list<struct ResultDeclaration>&);
 void generateHeaderFile();
-void generatePopulateInputs(std::ofstream&, const std::list<struct Declaration>&, const std::list<std::string>&);
+void generatePopulateInputs(std::ofstream&, const std::list<struct Declaration>&, const std::list<struct Declaration>&);
 void generateSourceFile();
 
 #endif

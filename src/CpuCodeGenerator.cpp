@@ -94,10 +94,62 @@ void generateCompareResults(
   strFile << "}\n";
 }
 
+void generatePopulateInput(
+    std::ofstream& strFile,
+    struct Declaration input,
+    std::string count,
+    std::string container,
+    int i
+    )
+{
+  std::string name = input.name;
+  std::string argsidx = std::to_string(i+1);
+
+  //for arrays, add a loop and indexes
+  if(input.isArray)
+  {
+    strFile << "  for(int i = 0; i < " << input.size << "; i++)\n";
+    name.append("[i]");
+    argsidx = "i+";
+    argsidx.append(std::to_string(i+1));
+  }
+  else
+  {
+    strFile << "  if(" << count << " >= " << i+2 << ")\n";
+  }
+
+  //value
+  //TODO: Add handling for other types
+  if(contains(input.type, "int"))
+  {
+    strFile << "    (*input)." << name << " = " << "atoi(" << container << "[" << argsidx << "]);\n";
+  }
+  else if(contains(input.type, "bool"))
+  {
+    strFile << "    (*input)." << name << " = " << "atoi(" << container << "[" << argsidx << "]);\n";
+  }
+  else if(contains(input.type, "char *") || contains(input.type, "char*"))
+  {
+    strFile << "  {\n";
+    strFile << "    (*input)." << name << " = (char *)malloc(sizeof(char)*(1+strlen(" << container << "[" << argsidx << "])));\n";
+    strFile << "    strcpy((*input)." << name << ", " << container << "[" << argsidx << "]);\n";
+    strFile << "  }\n";
+  }
+  else if(contains(input.type, "char"))
+  {
+    strFile << "    (*input)." << name << " = " << "*" << container << "[" << argsidx << "];\n";
+  }
+  else
+  {
+    llvm::outs() << "POPULATE_INPUTS: Improvising for custom type " << input.type << ".\n";
+    strFile << "    (*input)." << name << " = " << "atoi(" << container << "[" << argsidx << "]);\n";
+  }
+}
+
 void generatePopulateInputs(
     std::ofstream& strFile,
     const std::list<struct Declaration>& inputDecls,
-    const std::list<std::string>& stdinInputs)
+    const std::list<struct Declaration>& stdinInputs)
 {
   strFile << "void populate_inputs(struct " << structs_constants::INPUT << " *input, int argc, char** args, int stdinc, char** stdins)\n";
   strFile << "{\n";
@@ -105,63 +157,20 @@ void generatePopulateInputs(
   strFile << "  (*input)." << structs_constants::TEST_CASE_NUM << " = atoi(args[0]);\n";
   strFile << "  (*input)." << structs_constants::ARGC << " = argc;\n";
 
-  int i = -1;
+  int i = -1; //command line args start from index 1
   for(auto& input: inputDecls)
   {
     i++;
 
-    std::string name = input.name;
-    std::string argsidx = std::to_string(i+1);
-
-    //for arrays, add a loop and indexes
-    if(input.isArray)
-    {
-      strFile << "  for(int i = 0; i < " << input.size << "; i++)\n";
-      name.append("[i]");
-      argsidx = "i+";
-      argsidx.append(std::to_string(i+1));
-    }
-    else
-    {
-      strFile << "  if(argc >= " << i+2 << ")\n";
-    }
-
-    //value
-    //TODO: Add handling for other types
-    if(contains(input.type, "int"))
-    {
-      strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
-    }
-    else if(contains(input.type, "bool"))
-    {
-      strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
-    }
-    else if(contains(input.type, "char *") || contains(input.type, "char*"))
-    {
-      strFile << "  {\n";
-      strFile << "    (*input)." << name << " = (char *)malloc(sizeof(char)*(1+strlen(args[" << argsidx << "])));\n";
-      strFile << "    strcpy((*input)." << name << ", args[" << argsidx << "]);\n";
-      strFile << "  }\n";
-    }
-    else if(contains(input.type, "char"))
-    {
-      strFile << "    (*input)." << name << " = " << "*args[" << argsidx << "];\n";
-    }
-    else
-    {
-      llvm::outs() << "POPULATE_INPUTS: Improvising for custom type " << input.type << ".\n";
-      strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
-    }
+    generatePopulateInput(strFile, input, "argc", "args", i);
   }
 
+  i = -2; //stdin args start from index 0
   for(auto& stdinArg: stdinInputs)
   {
     i++;
-    strFile << "  if(stdinc >= " << i+1 << ")\n";
-    strFile << "    strcpy((*input)." << stdinArg << ", stdins[" << i << "]);\n";
+    generatePopulateInput(strFile, stdinArg, "stdinc", "stdins", i);
   }
 
   strFile << "}\n";
-
-
 }

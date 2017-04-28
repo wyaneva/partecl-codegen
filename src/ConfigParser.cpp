@@ -90,7 +90,7 @@ int parseTestedValueVariable(
   return status_constants::SUCCESS;
 }
 
-int parsePotentialArray(
+int parseName(
     const std::string& line,
     std::istringstream& iss,
     struct Declaration& declaration)
@@ -98,6 +98,7 @@ int parsePotentialArray(
   std::string name;
   iss >> name;
 
+  //parse potential array
   //read name char by char to see if it is of the form name[array_size]
   for(auto it = name.begin(); it != name.end(); it++)
   {
@@ -154,10 +155,9 @@ int parseInput(
 {
   struct Declaration input;
   parseType(line, iss, input);
-  //iss >> input.type; 
 
   //parse the input
-  if(parsePotentialArray(line, iss, input) == status_constants::FAIL)
+  if(parseName(line, iss, input) == status_constants::FAIL)
     return status_constants::FAIL;
   
   if(!input.isArray)
@@ -176,13 +176,16 @@ int parseInput(
 int parseStdin(
     const std::string& line,
     std::istringstream& iss,
-    std::list<std::string>& stdinInputs)
+    std::list<struct Declaration>& stdinInputs)
 {
-  std::string name;
-  iss >> name;
+  struct Declaration stdin1;
+  parseType(line, iss, stdin1);
+
+  if(parseName(line, iss, stdin1) == status_constants::FAIL)
+    return status_constants::FAIL;
 
   //add to list of inputs
-  stdinInputs.push_back(name);
+  stdinInputs.push_back(stdin1);
 
   return status_constants::SUCCESS;
 }
@@ -195,7 +198,7 @@ int parseResult(
   struct ResultDeclaration result;
   parseType(line, iss, result.declaration);
       
-  if(parsePotentialArray(line, iss, result.declaration) == status_constants::FAIL)
+  if(parseName(line, iss, result.declaration) == status_constants::FAIL)
     return status_constants::FAIL;
 
   std::string annot;
@@ -241,7 +244,7 @@ int parseInclude(
 int parseConfig(
     const std::string& configFilename,
     std::map<int, std::string>& argvIdxToInput,
-    std::list<std::string>& stdinInputs,
+    std::list<struct Declaration>& stdinInputs,
     std::list<struct Declaration>& inputDeclarations,
     std::list<struct ResultDeclaration>& resultDeclarations,
     std::list<std::string>& includes)
