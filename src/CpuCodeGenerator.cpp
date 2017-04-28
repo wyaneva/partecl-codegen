@@ -143,6 +143,10 @@ void generatePopulateInputs(
       strFile << "    strcpy((*input)." << name << ", args[" << argsidx << "]);\n";
       strFile << "  }\n";
     }
+    else if(contains(input.type, "char"))
+    {
+      strFile << "    (*input)." << name << " = " << "*args[" << argsidx << "];\n";
+    }
     else
     {
       llvm::outs() << "POPULATE_INPUTS: Improvising for custom type " << input.type << ".\n";
