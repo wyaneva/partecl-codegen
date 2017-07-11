@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Vanya Yaneva, The University of Edinburgh
+ * Copyright 2017 Vanya Yaneva, The University of Edinburgh
  *   
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,13 +33,13 @@ std::string generatePrintInts(
     const int& size)
 {
   std::stringstream ss;
-  ss << "printf(\"TC %d \", curres." << structs_constants::TEST_CASE_NUM << ");\n";
-  ss << "for(int k = 0; k < " << size << "; k++)\n";
-  ss << "{\n";
-  ss << "  int curel = " << "curres." << name << "[k];\n";
-  ss << "  printf(\"%d \", curel);\n";
-  ss << "}\n";
-  ss << "printf(\"\\n\");\n";
+  ss << "    printf(\"TC %d \", curres." << structs_constants::TEST_CASE_NUM << ");\n";
+  ss << "    for(int k = 0; k < " << size << "; k++)\n";
+  ss << "    {\n";
+  ss << "      int curel = " << "curres." << name << "[k];\n";
+  ss << "      printf(\"%d \", curel);\n";
+  ss << "    }\n";
+  ss << "    printf(\"\\n\");\n";
   return ss.str();
 }
 
@@ -61,8 +61,10 @@ std::string generatePrintCalls(
   else
   {
     //TODO: Handle other types; currently default to int
+#if PRINT_WARNINGS
     llvm::outs() << "\ngenerateCompareResults: I don't know how to print results of type '" << resultDecl.declaration.type 
         << "'. Defaulting to 'int'.\n";
+#endif
     if(resultDecl.declaration.isArray)
     {
       str = generatePrintInts(resultDecl.declaration.name, resultDecl.declaration.size);
@@ -88,7 +90,7 @@ void generateCompareResults(
   for(auto& resultDecl : resultDecls)
   {
     //TODO: Find out how to compare; for now just print
-    strFile << "    " << generatePrintCalls(resultDecl);
+    strFile << generatePrintCalls(resultDecl);
   }
   strFile << "  }\n";
   strFile << "}\n";
@@ -102,8 +104,8 @@ void generatePopulateInputs(
   strFile << "void populate_inputs(struct " << structs_constants::INPUT << " *input, int argc, char** args, int stdinc, char** stdins)\n";
   strFile << "{\n";
 
-  strFile << "  (*input)." << structs_constants::TEST_CASE_NUM << " = atoi(args[0]);\n";
-  strFile << "  (*input)." << structs_constants::ARGC << " = argc;\n";
+  strFile << "  input->" << structs_constants::TEST_CASE_NUM << " = atoi(args[0]);\n";
+  strFile << "  input->" << structs_constants::ARGC << " = argc;\n";
 
   int i = -1;
   for(auto& input: inputDecls)
@@ -130,23 +132,25 @@ void generatePopulateInputs(
     //TODO: Add handling for other types
     if(contains(input.type, "int"))
     {
-      strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
+      strFile << "    input->" << name << " = " << "atoi(args[" << argsidx << "]);\n";
     }
     else if(contains(input.type, "bool"))
     {
-      strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
+      strFile << "    input->" << name << " = " << "atoi(args[" << argsidx << "]);\n";
     }
     else if(contains(input.type, "char *") || contains(input.type, "char*"))
     {
       strFile << "  {\n";
-      strFile << "    (*input)." << name << " = (char *)malloc(sizeof(char)*(1+strlen(args[" << argsidx << "])));\n";
-      strFile << "    strcpy((*input)." << name << ", args[" << argsidx << "]);\n";
+      strFile << "    input->" << name << " = (char *)malloc(sizeof(char)*(1+strlen(args[" << argsidx << "])));\n";
+      strFile << "    strcpy(input->" << name << ", args[" << argsidx << "]);\n";
       strFile << "  }\n";
     }
     else
     {
+#if PRINT_WARNINGS
       llvm::outs() << "POPULATE_INPUTS: Improvising for custom type " << input.type << ".\n";
-      strFile << "    (*input)." << name << " = " << "atoi(args[" << argsidx << "]);\n";
+#endif
+      strFile << "    input->" << name << " = " << "atoi(args[" << argsidx << "]);\n";
     }
   }
 
@@ -154,7 +158,7 @@ void generatePopulateInputs(
   {
     i++;
     strFile << "  if(stdinc >= " << i+1 << ")\n";
-    strFile << "    strcpy((*input)." << stdinArg << ", stdins[" << i << "]);\n";
+    strFile << "    strcpy(input->" << stdinArg << ", stdins[" << i << "]);\n";
   }
 
   strFile << "}\n";
