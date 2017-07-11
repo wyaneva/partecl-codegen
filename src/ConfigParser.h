@@ -23,7 +23,7 @@
 int parseConfig(
     const std::string&,
     std::map<int, std::string>&,
-    std::list<std::string>&,
+    std::list<struct Declaration>&,
     std::list<struct Declaration>&,
     std::list<struct ResultDeclaration>&,
     std::list<std::string>&);

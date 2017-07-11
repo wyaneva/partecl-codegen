@@ -9,7 +9,7 @@ int main(int argc, char* argv[])
   printf("Enter a string: ");
   fgets(str, 1000, stdin);
   printf("Enter a character: ");
-  fgets(&ch, 2, stdin);
+  ch = fgetc(stdin);
 
   char* str_ptr = str;
   int occurs = 0;
