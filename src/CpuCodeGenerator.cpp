@@ -89,7 +89,7 @@ void generateCompareResults(
   for(auto& resultDecl : resultDecls)
   {
     //TODO: Find out how to compare; for now just print
-    strFile << "    " << generatePrintCalls(resultDecl);
+    strFile << generatePrintCalls(resultDecl);
   }
   strFile << "  }\n";
   strFile << "}\n";
