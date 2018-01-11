@@ -9,46 +9,22 @@ The generated OpenCL code needs to be built and executed by ParTeCL-Runtime (see
 I. Folder structure:
 --------------------
   - **src**        Source code
-  - **example**    A simple C program, together with a ParTeCL-CodeGen config file and test cases.
+  - **example**    Simple C programs, together with a ParTeCL-CodeGen config file and test cases.
 
 II. How to build:
 -----------------
 ParTeCL-CodeGen is a tool based on the Clang compiler, which uses Clang 4.0 LibTooling. 
 As such, it lives in the clang-llvm source tree and is built as part of it.
 Follow the following steps:
+
   0. Make sure you have CMake and Ninja installed.
-  1. Then, download and build the Clang compiler, as described on http://clang.llvm.org/docs/LibASTMatchersTutorial.html.
-  2. Next, clone ParTeCL-CodeGen inside ~/clang-llvm/llvm/tools/clang/tools/extra.
-  3. Add the following line to ~/clang-llvm/llvm/tools/clang/tools/extra/CMakeLists.txt:
+  1. Download and build the Clang compiler, as described on http://clang.llvm.org/docs/LibASTMatchersTutorial.html.
+  2. Clone ParTeCL-CodeGen inside '~/clang-llvm/llvm/tools/clang/tools/extra'.
+  3. Add the following line to '~/clang-llvm/llvm/tools/clang/tools/extra/CMakeLists.txt':
    
 >      add_subdirectory(partecl-codegen)
 
-  4. Create file ~/clang-llvm/llvm/tools/clang/tools/extra/partecl-codegen/CMakeLists.txt and add the following:
-
->      set(LLVM_LINK_COMPONENTS
->        Support
->        )
->              
->      add_clang_executable(partecl-codegen
->        src/ConfigParser.cpp
->        src/ConfigParser.h
->        src/Constants.h
->        src/CpuCodeGenerator.cpp
->        src/CpuCodeGenerator.h
->        src/Main.cpp
->        src/KernelGenerator.cpp
->        src/KernelGenerator.h
->        src/Utils.cpp
->        src/Utils.h)
->              
->      target_link_libraries(partecl-codegen
->        clangAST
->        clangASTMatchers
->        clangBasic
->        clangFrontend
->        clangTooling)
-
-  5. You can now build ParTeCL-CodeGen:
+  4. Build ParTeCL-CodeGen:
 
 >        cd ~/clang-llvm/build
 >        ninja
