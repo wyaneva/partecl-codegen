@@ -14,7 +14,7 @@ add_clang_executable(partecl-codegen
   src/Utils.cpp
   src/Utils.h)
         
-target_link_libraries(partecl-codegen
+target_link_libraries(partecl-codegen PRIVATE
   clangAST
   clangASTMatchers
   clangBasic
