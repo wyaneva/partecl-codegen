@@ -553,7 +553,7 @@ public:
 };
 
 auto argvInAtoiMatcher = callExpr(
-    hasAnyArgument(arraySubscriptExpr(hasBase(ignoringImpCasts(declRefExpr(to(varDecl(hasName("argv"))))))).bind("argvArray")),
+    hasArgument(0, arraySubscriptExpr(hasBase(ignoringImpCasts(declRefExpr(to(varDecl(hasName("argv"))))))).bind("argvArray")),
     callee(functionDecl(hasName("atoi")))
     ).bind("argvInAtoi");
 

@@ -99,6 +99,8 @@ int parseName(
   iss >> name;
 
   //parse potential array
+  declaration.isArray = false;
+  declaration.size = -1;
   //read name char by char to see if it is of the form name[array_size]
   for(auto it = name.begin(); it != name.end(); it++)
   {
@@ -130,12 +132,6 @@ int parseName(
         {
           declaration.size = std::stoi(size);
         }
-      }
-      else 
-      {
-        //not an array
-        declaration.isArray = false;
-        declaration.size = -1;
       }
       break;
     }
