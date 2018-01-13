@@ -1,6 +1,6 @@
 /*
  * Copyright 2016 Vanya Yaneva, The University of Edinburgh
- *   
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -14,20 +14,18 @@
  * limitations under the License.
  */
 
-#include<fstream>
-#include<iostream>
-#include<streambuf>
-#include<string>
 #include "clang/Rewrite/Core/Rewriter.h"
 #include "clang/Tooling/Tooling.h"
+#include <fstream>
+#include <iostream>
+#include <streambuf>
+#include <string>
 
-bool contains(const std::string& str1, const std::string& str2)
-{
+bool contains(const std::string &str1, const std::string &str2) {
   return str1.find(str2) != std::string::npos;
 }
 
-std::string read_file(std::string filename)
-{
+std::string read_file(std::string filename) {
   std::ifstream t(filename);
   std::string str;
 
@@ -35,19 +33,18 @@ std::string read_file(std::string filename)
   str.reserve(t.tellg());
   t.seekg(0, std::ios::beg);
 
-  str.assign(std::istreambuf_iterator<char>(t), std::istreambuf_iterator<char>());
+  str.assign(std::istreambuf_iterator<char>(t),
+             std::istreambuf_iterator<char>());
 
   return str;
 }
 
-std::string getDeclAsString(clang::Decl *decl, clang::Rewriter rewriter)
-{
+std::string getDeclAsString(clang::Decl *decl, clang::Rewriter rewriter) {
   clang::SourceRange declRange = decl->getSourceRange();
   std::string declString;
 
   int rangeSize = rewriter.getRangeSize(declRange);
-  if(rangeSize == -1)
-  {
+  if (rangeSize == -1) {
     return "";
   }
 
@@ -59,14 +56,12 @@ std::string getDeclAsString(clang::Decl *decl, clang::Rewriter rewriter)
   return declString;
 }
 
-std::string getStmtAsString(clang::Stmt *stmt, clang::Rewriter rewriter)
-{
+std::string getStmtAsString(clang::Stmt *stmt, clang::Rewriter rewriter) {
   clang::SourceRange range = stmt->getSourceRange();
   std::string stmtString;
 
   int rangeSize = rewriter.getRangeSize(range);
-  if(rangeSize == -1)
-  {
+  if (rangeSize == -1) {
     return "";
   }
 
@@ -77,5 +72,3 @@ std::string getStmtAsString(clang::Stmt *stmt, clang::Rewriter rewriter)
 
   return stmtString;
 }
-
-

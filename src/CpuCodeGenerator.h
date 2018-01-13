@@ -1,6 +1,6 @@
 /*
  * Copyright 2016 Vanya Yaneva, The University of Edinburgh
- *   
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,12 +17,15 @@
 #ifndef CPU_CODE_GENERATOR_H
 #define CPU_CODE_GENERATOR_H
 
-#include <fstream>
 #include "Utils.h"
+#include <fstream>
 
-void generateCompareResults(std::ofstream&, const std::list<struct ResultDeclaration>&);
+void generateCompareResults(std::ofstream &,
+                            const std::list<struct ResultDeclaration> &);
 void generateHeaderFile();
-void generatePopulateInputs(std::ofstream&, const std::list<struct Declaration>&, const std::list<struct Declaration>&);
+void generatePopulateInputs(std::ofstream &,
+                            const std::list<struct Declaration> &,
+                            const std::list<struct Declaration> &);
 void generateSourceFile();
 
 #endif

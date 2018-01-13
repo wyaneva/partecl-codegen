@@ -1,6 +1,6 @@
 /*
  * Copyright 2016 Vanya Yaneva, The University of Edinburgh
- *   
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,10 +17,13 @@
 #ifndef KERNEL_GENERATOR_H
 #define KERNEL_GENERATOR_H
 
-#include <string>
-#include "clang/Tooling/Tooling.h"
 #include "Utils.h"
+#include "clang/Tooling/Tooling.h"
+#include <string>
 
-void generateKernel(clang::tooling::ClangTool *, std::string, std::map<int, std::string>, std::list<struct Declaration>, std::list<struct Declaration>, std::list<struct ResultDeclaration>);
+void generateKernel(clang::tooling::ClangTool *, std::string,
+                    std::map<int, std::string>, std::list<struct Declaration>,
+                    std::list<struct Declaration>,
+                    std::list<struct ResultDeclaration>);
 
 #endif

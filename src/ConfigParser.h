@@ -1,6 +1,6 @@
 /*
  * Copyright 2016 Vanya Yaneva, The University of Edinburgh
- *   
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,15 +17,13 @@
 #ifndef CONFIG_PARSER_H
 #define CONFIG_PARSER_H
 
-#include <string>
 #include "Utils.h"
+#include <string>
 
-int parseConfig(
-    const std::string&,
-    std::map<int, std::string>&,
-    std::list<struct Declaration>&,
-    std::list<struct Declaration>&,
-    std::list<struct ResultDeclaration>&,
-    std::list<std::string>&);
+int parseConfig(const std::string &, std::map<int, std::string> &,
+                std::list<struct Declaration> &,
+                std::list<struct Declaration> &,
+                std::list<struct ResultDeclaration> &,
+                std::list<std::string> &);
 
 #endif

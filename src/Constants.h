@@ -1,6 +1,6 @@
 /*
  * Copyright 2016 Vanya Yaneva, The University of Edinburgh
- *   
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -19,40 +19,35 @@
 
 #include <string>
 
-//constants used in the configuration file
-namespace config_constants 
-{
-  const char* const FUNCTION = "function:";
-  const char* const VARIABLE = "variable:";
-  const char* const RET = "RET";
-  const char* const ARG = "ARG";
-  const char* const INPUT = "input:";
-  const char* const STDIN = "stdin:";
-  const char* const RESULT = "result:";
-  const char* const INCLUDE = "include:";
-}
+// constants used in the configuration file
+namespace config_constants {
+const char *const FUNCTION = "function:";
+const char *const VARIABLE = "variable:";
+const char *const RET = "RET";
+const char *const ARG = "ARG";
+const char *const INPUT = "input:";
+const char *const STDIN = "stdin:";
+const char *const RESULT = "result:";
+const char *const INCLUDE = "include:";
+} // namespace config_constants
 
-//filenames
-namespace filename_constants
-{
-  const char* const STRUCTS_FILENAME = "structs.h";
-  const char* const CPU_GEN_FILENAME = "cpu-gen";
-}
+// filenames
+namespace filename_constants {
+const char *const STRUCTS_FILENAME = "structs.h";
+const char *const CPU_GEN_FILENAME = "cpu-gen";
+} // namespace filename_constants
 
-//status
-namespace status_constants
-{
-  const int FAIL = 0;
-  const int SUCCESS = 1;
-}
+// status
+namespace status_constants {
+const int FAIL = 0;
+const int SUCCESS = 1;
+} // namespace status_constants
 
-namespace structs_constants
-{
-  const char* const ARGC = "argc";
-  const char* const INPUT = "partecl_input";
-  const char* const RESULT = "partecl_result";
-  const char* const TEST_CASE_NUM = "test_case_num";
-}
+namespace structs_constants {
+const char *const ARGC = "argc";
+const char *const INPUT = "partecl_input";
+const char *const RESULT = "partecl_result";
+const char *const TEST_CASE_NUM = "test_case_num";
+} // namespace structs_constants
 
-#endif 
-
+#endif
