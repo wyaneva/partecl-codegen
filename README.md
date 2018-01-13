@@ -19,15 +19,15 @@ Follow the following steps:
 
   0. Make sure you have CMake and Ninja installed.
   1. Download and build the Clang compiler, as described on http://clang.llvm.org/docs/LibASTMatchersTutorial.html.
-  2. Clone ParTeCL-CodeGen inside '~/clang-llvm/llvm/tools/clang/tools/extra'.
-  3. Add the following line to '~/clang-llvm/llvm/tools/clang/tools/extra/CMakeLists.txt':
+  2. Clone ParTeCL-CodeGen inside `~/clang-llvm/llvm/tools/clang/tools/extra`.
+  3. Add the following line to `~/clang-llvm/llvm/tools/clang/tools/extra/CMakeLists.txt`:
    
 >      add_subdirectory(partecl-codegen)
 
   4. Build ParTeCL-CodeGen:
 
->        cd ~/clang-llvm/build
->        ninja
+>      cd ~/clang-llvm/build
+>      ninja
 
 
 III. How to run:
