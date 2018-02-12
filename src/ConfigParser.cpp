@@ -24,18 +24,29 @@ int parseType(const std::string &line, std::istringstream &iss,
   std::string parse;
   iss >> parse;
 
-  // not a const, just the type
-  if (parse != "const") {
-    decl.isConst = false;
-    decl.type = parse;
-    return status_constants::SUCCESS;
+  // if a const, set flag and parse to the next
+  decl.isConst = false;
+  if (parse == "const") {
+    decl.isConst = true;
+    iss >> parse;
   }
 
-  // else keep parsing
-  decl.isConst = true;
-  iss >> parse;
-  decl.type = parse;
+  // if a pointer, set flag and consume the '*' char
+  decl.isPointer = false;
+  auto starChar = parse.find("*");
+  if (starChar != std::string::npos) { // declared as `type* name`
+    decl.isPointer = true;
+    parse.erase(starChar);
+  } else {     // declared as `type *name` or `type * name`
+    iss.get(); // whitespace
+    char next = iss.peek();
+    if (next == '*') {
+      decl.isPointer = true;
+      iss.get(next);
+    }
+  }
 
+  decl.type = parse;
   return status_constants::SUCCESS;
 }
 

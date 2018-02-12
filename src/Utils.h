@@ -40,6 +40,7 @@ static struct Declaration {
   std::string name;
   bool isArray;
   bool isConst;
+  bool isPointer;
   int size; // set to -1 if not array
 } Declaration;
 

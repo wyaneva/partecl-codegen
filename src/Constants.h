@@ -48,6 +48,7 @@ const char *const ARGC = "argc";
 const char *const INPUT = "partecl_input";
 const char *const RESULT = "partecl_result";
 const char *const TEST_CASE_NUM = "test_case_num";
+const int POINTER_ARRAY_SIZE = 500;
 } // namespace structs_constants
 
 #endif

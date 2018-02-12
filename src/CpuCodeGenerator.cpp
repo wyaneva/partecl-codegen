@@ -20,6 +20,77 @@
 #include <sstream>
 #include <string>
 
+/*
+ * Gnerate structs.h
+ */
+void generateDeclaration(std::ofstream &strFile,
+                         const struct Declaration &declaration) {
+  std::string type = declaration.type;
+  if (declaration.isPointer) { // turn a pointer into a static array
+    strFile << "  " << type << " " << declaration.name << "["
+            << structs_constants::POINTER_ARRAY_SIZE << "];\n";
+  } else if (declaration.isArray) {
+    strFile << "  " << type << " " << declaration.name << "["
+            << declaration.size << "];\n";
+  } else {
+    strFile << "  " << type << " " << declaration.name << ";\n";
+  }
+}
+
+void generateStructs(
+    const std::string &outputDirectory,
+    const std::list<struct Declaration> &stdinInputs,
+    const std::list<struct Declaration> &inputDeclarations,
+    const std::list<struct ResultDeclaration> &resultDeclarations,
+    const std::list<std::string> &includes) {
+  llvm::outs() << "Generating memory buffer structs... ";
+
+  std::string structsFilename =
+      outputDirectory + '/' + filename_constants::STRUCTS_FILENAME;
+  std::ofstream strFile;
+  strFile.open(structsFilename);
+
+  // write input
+  strFile << "#ifndef STRUCTS_H\n";
+  strFile << "#define STRUCTS_H\n\n";
+  for (auto &include : includes) {
+    strFile << "#include \"" << include << "\"\n";
+  }
+  strFile << "\n";
+  strFile << "typedef struct " << structs_constants::INPUT << "\n";
+  strFile << "{\n";
+  strFile << "  int " << structs_constants::TEST_CASE_NUM << ";\n";
+  strFile << "  int " << structs_constants::ARGC << ";\n";
+
+  for (auto &inputDecl : inputDeclarations) {
+    generateDeclaration(strFile, inputDecl);
+  }
+
+  for (auto &stdinArg : stdinInputs) {
+    generateDeclaration(strFile, stdinArg);
+  }
+
+  strFile << "} " << structs_constants::INPUT << ";\n\n";
+
+  // write result
+  strFile << "typedef struct " << structs_constants::RESULT << "\n";
+  strFile << "{\n";
+  strFile << "  int test_case_num;\n";
+  for (auto &resultDecl : resultDeclarations) {
+    generateDeclaration(strFile, resultDecl.declaration);
+  }
+  strFile << "} " << structs_constants::RESULT << ";\n\n";
+
+  strFile << "#endif\n";
+  strFile.close();
+
+  llvm::outs() << "DONE!\n";
+}
+
+/*
+ * Generate cpu-gen.h and cpu-gen.c
+ */
+
 std::string generatePrintInt(const std::string &name) {
   std::stringstream ss;
   ss << "printf(\"TC %d %d\\n\", curres." << structs_constants::TEST_CASE_NUM
@@ -99,25 +170,30 @@ void generatePopulateInput(std::ofstream &strFile, struct Declaration input,
     argsidx = "i+";
     argsidx.append(std::to_string(i + 1));
   } else {
-    strFile << "  if(" << count << " >= " << i + 2 << ")\n";
+    strFile << "  if(" << count << " >= " << i + 2 << ")\n"
+            << "  {\n";
   }
 
-  // value
-  // TODO: Add handling for other types
-  if (contains(input.type, "int")) {
+  // pointers
+  // TODO: add handling for pointers which are not 'char *'
+  if (input.isPointer) {
+    strFile << "    char *" << name << "_ptr = " << container << "[" << argsidx
+            << "];\n"
+            << "    int idx = 0;\n"
+            << "    while(*" << name << "_ptr != \'\\0\')\n"
+            << "    {\n"
+            << "      input->" << name << "[idx] = *" << name << "_ptr;\n"
+            << "      " << name << "_ptr++;\n"
+            << "      idx++;\n"
+            << "    }\n"
+            << "    input->" << name << "[idx] = \'\\0\';\n";
+    // not pointers
+  } else if (contains(input.type, "int")) {
     strFile << "    input->" << name << " = "
             << "atoi(" << container << "[" << argsidx << "]);\n";
   } else if (contains(input.type, "bool")) {
     strFile << "    input->" << name << " = "
             << "atoi(" << container << "[" << argsidx << "]);\n";
-  } else if (contains(input.type, "char *") || contains(input.type, "char*")) {
-    strFile << "  {\n";
-    strFile << "    input->" << name
-            << " = (char *)malloc(sizeof(char)*(1+strlen(" << container << "["
-            << argsidx << "])));\n";
-    strFile << "    strcpy(input->" << name << ", " << container << "["
-            << argsidx << "]);\n";
-    strFile << "  }\n";
   } else if (contains(input.type, "char")) {
     strFile << "    input->" << name << " = "
             << "*" << container << "[" << argsidx << "];\n";
@@ -128,6 +204,11 @@ void generatePopulateInput(std::ofstream &strFile, struct Declaration input,
 #endif
     strFile << "    input->" << name << " = "
             << "atoi(" << container << "[" << argsidx << "]);\n";
+  }
+
+  // close bracket opened in the beginning
+  if (!input.isArray) {
+    strFile << "  }\n";
   }
 }
 
@@ -156,4 +237,46 @@ void generatePopulateInputs(std::ofstream &strFile,
   }
 
   strFile << "}\n";
+}
+
+void generateCpuGen(const std::string &outputDirectory,
+                    const std::list<struct Declaration> &inputs,
+                    const std::list<struct ResultDeclaration> &results,
+                    const std::list<struct Declaration> &stdinInputs) {
+  llvm::outs() << "Generating CPU code... ";
+
+  // generate header file
+  std::ofstream headerFile;
+  std::string headerFilename =
+      outputDirectory + "/" + filename_constants::CPU_GEN_FILENAME + ".h";
+  headerFile.open(headerFilename);
+
+  headerFile << "#ifndef CPU_GEN_H\n";
+  headerFile << "#define CPU_GEN_H\n";
+  headerFile << "#include \"structs.h\"\n\n";
+  headerFile << "void populate_inputs(struct " << structs_constants::INPUT
+             << "*, int, char**, int, char**);\n\n";
+  headerFile << "void compare_results(struct " << structs_constants::RESULT
+             << "*, struct " << structs_constants::RESULT << "*, int);\n\n";
+  headerFile << "#endif\n";
+
+  headerFile.close();
+
+  // generate source file
+  std::ofstream strFile;
+  std::string sourceFilename =
+      outputDirectory + "/" + filename_constants::CPU_GEN_FILENAME + ".c";
+  strFile.open(sourceFilename);
+
+  strFile << "#include <stdlib.h>\n";
+  strFile << "#include <string.h>\n";
+  strFile << "#include <stdio.h>\n";
+  strFile << "#include \"cpu-gen.h\"\n\n";
+
+  generatePopulateInputs(strFile, inputs, stdinInputs);
+  generateCompareResults(strFile, results);
+
+  strFile.close();
+
+  llvm::outs() << "DONE!\n";
 }

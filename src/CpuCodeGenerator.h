@@ -20,12 +20,12 @@
 #include "Utils.h"
 #include <fstream>
 
-void generateCompareResults(std::ofstream &,
-                            const std::list<struct ResultDeclaration> &);
-void generateHeaderFile();
-void generatePopulateInputs(std::ofstream &,
-                            const std::list<struct Declaration> &,
-                            const std::list<struct Declaration> &);
-void generateSourceFile();
+void generateStructs(const std::string &, const std::list<struct Declaration> &,
+                     const std::list<struct Declaration> &,
+                     const std::list<struct ResultDeclaration> &,
+                     const std::list<std::string> &);
 
+void generateCpuGen(const std::string &, const std::list<struct Declaration> &,
+                    const std::list<struct ResultDeclaration> &,
+                    const std::list<struct Declaration> &);
 #endif

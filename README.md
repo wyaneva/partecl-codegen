@@ -60,7 +60,7 @@ Example:
 
 The following figure displays how **ParTeCL-CodeGen** is used with [ParTeCL-Runtime](https://github.com/wyaneva/ParTeCL-Runtime).
 
-![ParTeCL figure](doc/partecl.svg)
+![ParTeCL figure](doc/images/partecl.svg)
 
 
 ## Related publications
