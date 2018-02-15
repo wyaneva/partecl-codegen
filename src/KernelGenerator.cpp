@@ -45,7 +45,8 @@ LangOptions langOpts;
 PrintingPolicy printingPolicy(langOpts);
 
 // Global scope members
-std::string testClFilename;
+bool isMainFile = false;
+std::string testClOutputDirectory;
 std::map<int, std::string> argvIdxToInput;
 std::map<const Expr *, bool> argvIdxToIsReplaced;
 std::map<const SourceLocation, bool> locationToPointerDereferenced;
@@ -670,6 +671,8 @@ public:
   MainHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
   virtual void run(const MatchFinder::MatchResult &Result) {
+    isMainFile = true;
+
     const FunctionDecl *decl = Result.Nodes.getNodeAs<FunctionDecl>("mainDecl");
 
     // rename and label as kernel
@@ -1427,31 +1430,53 @@ public:
   }
 };
 
-/* Frontend Action */
+/* Frontend Action
+ * NB: A new FrontEndAction will be created for each source file
+ */
 class KernelGenClassAction : public clang::ASTFrontendAction {
 private:
   Rewriter rewriter;
 
 public:
   // Write results in a new file
-  // NB: A new FrontEndAction will be created for each source file
   void EndSourceFileAction() override {
-    const RewriteBuffer *buffer =
-        rewriter.getRewriteBufferFor(rewriter.getSourceMgr().getMainFileID());
+
+    auto filename = getCurrentFile().rsplit('/').second;
+    auto &sourceMgr = rewriter.getSourceMgr();
+
+    // get the rewritebuffer and declare source for the current file
+    auto buffer = rewriter.getRewriteBufferFor(sourceMgr.getMainFileID());
     if (buffer == NULL) {
-      llvm::outs() << "Rewrite buffer is null. Cannot write in file. \n";
+      llvm::outs() << "Rewrite buffer is null. Cannot write in file "
+                   << filename << ". \n";
       return;
     }
-
-    // include for 'structs.h' and special headers
     std::string rewriteBuffer = std::string(buffer->begin(), buffer->end());
-    std::string source = "#include \"";
-    source.append(filename_constants::STRUCTS_FILENAME);
-    source.append("\"\n");
-    for (auto inc = includesToAdd.begin(); inc != includesToAdd.end(); inc++) {
-      source.append("#include \"");
-      source.append(*inc);
+    std::string source;
+
+    // if file ends in .c, change to .cl
+    auto filenameStr = filename.str();
+    if (filename.endswith(".c")) {
+      filename = filename.rsplit('.').first;
+      filenameStr = filename.str() + ".cl";
+    }
+
+    // if this is the main file, change to main.cl
+    if (isMainFile) {
+      isMainFile = false;
+
+      filenameStr = "main.cl";
+
+      // include for 'structs.h' and special headers
+      source = "#include \"";
+      source.append(filename_constants::STRUCTS_FILENAME);
       source.append("\"\n");
+      for (auto inc = includesToAdd.begin(); inc != includesToAdd.end();
+           inc++) {
+        source.append("#include \"");
+        source.append(*inc);
+        source.append("\"\n");
+      }
     }
 
     // comment out includes and typedef bool
@@ -1482,8 +1507,10 @@ public:
       source.append("\n");
     }
 
+    // Write into file
+    auto outputFile = testClOutputDirectory + "/" + filenameStr;
     std::ofstream clFile;
-    clFile.open(testClFilename);
+    clFile.open(outputFile);
     clFile << source;
     clFile.close();
   }
@@ -1503,7 +1530,7 @@ void generateKernel(ClangTool *_tool, std::string outputDirectory,
   llvm::outs() << "Generating kernel code... ";
 
   // set global scope variables
-  testClFilename = outputDirectory + "/" + "test.cl";
+  testClOutputDirectory = outputDirectory;
   argvIdxToInput = _argvIdxToInput;
   inputs = _inputs;
   stdinInputs = _stdinInputs;
