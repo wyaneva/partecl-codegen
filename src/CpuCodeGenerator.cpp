@@ -91,22 +91,69 @@ void generateStructs(
  * Generate cpu-gen.h and cpu-gen.c
  */
 
-std::string generatePrintInt(const std::string &name) {
+std::string generatePrintByTypeNonArray(const struct Declaration &declaration) {
   std::stringstream ss;
-  ss << "printf(\"TC %d %d\\n\", curres." << structs_constants::TEST_CASE_NUM
-     << ", curres." << name << ");\n";
+
+  ss << "printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM
+     << ");\n";
+
+  if (declaration.type == "int") {
+
+    ss << "printf(\"%d \\n\", curres." << declaration.name << ");\n";
+
+  } else if (declaration.type == "char") {
+
+    ss << "printf(\"%c \\n\", curres." << declaration.name << ");\n";
+
+  } else {
+
+  // TODO: Handle other types; currently default to int
+#if ENABLE_WARNINGS
+    llvm::outs() << "\ngenerateCompareResults: I don't know how to print "
+                    "results of type '"
+                 << resultDecl.declaration.type << "'. Defaulting to 'int'.\n";
+#endif
+    ss << "printf(\"%d \", curres." << declaration.name << ");\n";
+  }
   return ss.str();
 }
 
-std::string generatePrintInts(const std::string &name, const int &size) {
+std::string generatePrintByTypeArray(const struct Declaration &declaration) {
   std::stringstream ss;
-  ss << "    printf(\"TC %d \", curres." << structs_constants::TEST_CASE_NUM
+  if (declaration.type == "int") {
+
+    ss << "      int curel = "
+       << "curres." << declaration.name << "[k];\n";
+    ss << "      printf(\"%d \", curel);\n";
+
+  } else if (declaration.type == "char") {
+
+    ss << "      char curel = "
+       << "curres." << declaration.name << "[k];\n";
+    ss << "      printf(\"%c \", curel);\n";
+
+  } else {
+  // TODO: Handle other types; currently default to int
+#if ENABLE_WARNINGS
+    llvm::outs() << "\ngenerateCompareResults: I don't know how to print "
+                    "results of type '"
+                 << declaration.type << "'. Defaulting to 'int'.\n";
+#endif
+
+    ss << "      int curel = "
+       << "curres." << declaration.name << "[k];\n";
+    ss << "      printf(\"%d \", curel);\n";
+  }
+  return ss.str();
+}
+
+std::string generatePrintArray(const struct Declaration &declaration) {
+  std::stringstream ss;
+  ss << "    printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM
      << ");\n";
-  ss << "    for(int k = 0; k < " << size << "; k++)\n";
+  ss << "    for(int k = 0; k < " << declaration.size << "; k++)\n";
   ss << "    {\n";
-  ss << "      int curel = "
-     << "curres." << name << "[k];\n";
-  ss << "      printf(\"%d \", curel);\n";
+  ss << generatePrintByTypeArray(declaration);
   ss << "    }\n";
   ss << "    printf(\"\\n\");\n";
   return ss.str();
@@ -114,26 +161,10 @@ std::string generatePrintInts(const std::string &name, const int &size) {
 
 std::string generatePrintCalls(const struct ResultDeclaration &resultDecl) {
   std::string str;
-  if (resultDecl.declaration.type == "int") {
-    if (resultDecl.declaration.isArray) {
-      str = generatePrintInts(resultDecl.declaration.name,
-                              resultDecl.declaration.size);
-    } else {
-      str = generatePrintInt(resultDecl.declaration.name);
-    }
+  if (resultDecl.declaration.isArray) {
+    str = generatePrintArray(resultDecl.declaration);
   } else {
-  // TODO: Handle other types; currently default to int
-#if ENABLE_WARNINGS
-    llvm::outs() << "\ngenerateCompareResults: I don't know how to print "
-                    "results of type '"
-                 << resultDecl.declaration.type << "'. Defaulting to 'int'.\n";
-#endif
-    if (resultDecl.declaration.isArray) {
-      str = generatePrintInts(resultDecl.declaration.name,
-                              resultDecl.declaration.size);
-    } else {
-      str = generatePrintInt(resultDecl.declaration.name);
-    }
+    str = generatePrintByTypeNonArray(resultDecl.declaration);
   }
 
   return str;
