@@ -97,7 +97,6 @@ int parseName(const std::string &line, std::istringstream &iss,
 
   // parse potential array
   declaration.isArray = false;
-  declaration.size = -1;
   // read name char by char to see if it is of the form name[array_size]
   for (auto it = name.begin(); it != name.end(); it++) {
     auto c = *it;
@@ -112,19 +111,19 @@ int parseName(const std::string &line, std::istringstream &iss,
         // read the length of the array
         std::string size;
         it++;
-        while (std::isdigit(*it) && it != name.end()) {
+        while (*it != ']' && it != name.end()) {
           size += *it;
           it++;
         }
 
         if (*it != ']') {
           llvm::outs()
-              << "Array " << declaration.name
+              << "Array \"" << declaration.name << "[" << size << "]\""
               << " is not correctly defined in line:\n"
               << line << "\nPlease, specify as   'type arrayname[arraysize]'\n";
           return status_constants::FAIL;
         } else {
-          declaration.size = std::stoi(size);
+          declaration.size = size;
         }
       }
       break;

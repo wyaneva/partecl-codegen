@@ -770,7 +770,7 @@ public:
       if (result.testedValue.type == TestedValueType::variable) {
         if (result.declaration.isArray) {
           eInsertion << "  for(int i = 0; i < ";
-          eInsertion << std::to_string(result.declaration.size);
+          eInsertion << result.declaration.size;
           eInsertion << "; i++)\n";
           eInsertion << "  {\n";
           eInsertion << "    result_gen->";

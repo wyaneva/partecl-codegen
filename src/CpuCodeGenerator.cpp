@@ -25,13 +25,21 @@
  */
 void generateDeclaration(std::ofstream &strFile,
                          const struct Declaration &declaration) {
+
   std::string type = declaration.type;
+  std::stringstream size;
+  // if the size is not a numeric string, then hardcode it
+  if (declaration.size.find_first_not_of("0123456789") != std::string::npos)
+    size << structs_constants::POINTER_ARRAY_SIZE;
+  else
+    size << declaration.size;
+
   if (declaration.isPointer) { // turn a pointer into a static array
     strFile << "  " << type << " " << declaration.name << "["
             << structs_constants::POINTER_ARRAY_SIZE << "];\n";
   } else if (declaration.isArray) {
-    strFile << "  " << type << " " << declaration.name << "["
-            << declaration.size << "];\n";
+    strFile << "  " << type << " " << declaration.name << "[" << size.str()
+            << "];\n";
   } else {
     strFile << "  " << type << " " << declaration.name << ";\n";
   }
@@ -148,10 +156,18 @@ std::string generatePrintByTypeArray(const struct Declaration &declaration) {
 }
 
 std::string generatePrintArray(const struct Declaration &declaration) {
+
+  std::string size = declaration.size;
+
+  // if the size is not a numeric string, then it must be a member of the result
+  // struct
+  if (declaration.size.find_first_not_of("0123456789") != std::string::npos)
+    size = "curres." + declaration.size;
+
   std::stringstream ss;
   ss << "    printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM
      << ");\n";
-  ss << "    for(int k = 0; k < " << declaration.size << "; k++)\n";
+  ss << "    for(int k = 0; k < " << size << "; k++)\n";
   ss << "    {\n";
   ss << generatePrintByTypeArray(declaration);
   ss << "    }\n";

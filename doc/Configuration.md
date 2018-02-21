@@ -96,3 +96,21 @@ Below is the full list of configuration options and how they are used.
     ...
   } partecl_result;
   ```
+
+### Declaring of arrays
+
+The user can specify array inputs and results using a constant or variable lenght.
+For example, they can specify `result: int array[10] variable: sum` or `result: int array[lenght] variable: output_array`.
+
+When they use variable lenght, that variable should also be declared in the input/result.
+For example,
+
+`result: int array[length] variable: output_array`
+
+should also have:
+
+`result: int length variable: output_length` 
+
+in the configuration file.
+
+In this way, the program will generate code which knows to which variable in the code (in this case `output_length`) the variable `length` refers to.

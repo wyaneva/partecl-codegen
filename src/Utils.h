@@ -41,7 +41,7 @@ static struct Declaration {
   bool isArray;
   bool isConst;
   bool isPointer;
-  int size; // set to -1 if not array
+  std::string size; // set to empty when not array
 } Declaration;
 
 static struct ResultDeclaration {
