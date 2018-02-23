@@ -1438,14 +1438,15 @@ public:
     auto &sourceMgr = rewriter.getSourceMgr();
 
     // get the rewritebuffer and declare source for the current file
-    auto buffer = rewriter.getRewriteBufferFor(sourceMgr.getMainFileID());
-    if (buffer == NULL) {
-      llvm::outs() << "Rewrite buffer is null. Cannot write in file "
-                   << filename << ". \n";
-      return;
-    }
-    std::string rewriteBuffer = std::string(buffer->begin(), buffer->end());
+    std::string rewriteBuffer;
     std::string source;
+    auto buffer = rewriter.getRewriteBufferFor(sourceMgr.getMainFileID());
+    if (buffer == NULL) { // Rewrite buffer is null. No modification for file
+                          // the current file."
+      rewriteBuffer = sourceMgr.getBufferData(sourceMgr.getMainFileID());
+    } else {
+      rewriteBuffer = std::string(buffer->begin(), buffer->end());
+    }
 
     // if file ends in .c, change to .cl
     auto filenameStr = filename.str();
