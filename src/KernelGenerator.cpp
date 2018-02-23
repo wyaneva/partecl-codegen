@@ -377,14 +377,6 @@ void addStdinToFunctionDecl(const FunctionDecl *funcDecl) {
   }
 }
 
-// builds the call graph from callee - caller map
-void buildCallGraph() {
-  for (auto &funcCall : funcCallToCallerDecl) {
-    auto funcDecl = funcCall.first->getDirectCallee();
-    funcDeclToCallerDecls[funcDecl].push_back(funcCall.second);
-  }
-}
-
 // finds functions which call other functions that:
 // 1. call global variables directly
 // 2. use inputs and results
@@ -931,6 +923,8 @@ public:
     const FunctionDecl *caller = Result.Nodes.getNodeAs<FunctionDecl>("caller");
 
     funcCallToCallerDecl[callee] = caller;
+    auto decl = callee->getDirectCallee();
+    funcDeclToCallerDecls[decl].push_back(caller);
   }
 };
 
@@ -1421,7 +1415,6 @@ public:
     ioMatchFinder.matchAST(Context);
     discoverGlobalVarsMatchFinder.matchAST(Context);
 
-    buildCallGraph();
     findAllFunctionsWhichUseSpecialVars();
 
     rewriteGlobalVarsMatchFinder.matchAST(Context);
