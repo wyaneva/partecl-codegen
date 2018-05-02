@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Vanya Yaneva, The University of Edinburgh
+ * Copyright 2017-2018 Vanya Yaneva, The University of Edinburgh
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,13 +30,13 @@ void generateDeclaration(std::ofstream &strFile,
   std::stringstream size;
   // if the size is not a numeric string, then hardcode it
   if (declaration.size.find_first_not_of("0123456789") != std::string::npos)
-    size << structs_constants::POINTER_ARRAY_SIZE;
+    size << structs_constants::PADDED_INPUT_ARRAY_SIZE;
   else
     size << declaration.size;
 
   if (declaration.isPointer) { // turn a pointer into a static array
     strFile << "  " << type << " " << declaration.name << "["
-            << structs_constants::POINTER_ARRAY_SIZE << "];\n";
+            << structs_constants::PADDED_INPUT_ARRAY_SIZE << "];\n";
   } else if (declaration.isArray) {
     strFile << "  " << type << " " << declaration.name << "[" << size.str()
             << "];\n";
@@ -64,6 +64,8 @@ void generateStructs(
   for (auto &include : includes) {
     strFile << "#include \"" << include << "\"\n";
   }
+  strFile << "#define " << structs_constants::PADDED_INPUT_ARRAY_SIZE << " "
+          << structs_constants::POINTER_ARRAY_SIZE << "\n";
   strFile << "\n";
   strFile << "typedef struct " << structs_constants::INPUT << "\n";
   strFile << "{\n";
@@ -115,7 +117,7 @@ std::string generatePrintByTypeNonArray(const struct Declaration &declaration) {
 
   } else {
 
-  // TODO: Handle other types; currently default to int
+    // TODO: Handle other types; currently default to int
 #if ENABLE_WARNINGS
     llvm::outs() << "\ngenerateCompareResults: I don't know how to print "
                     "results of type '"
@@ -141,7 +143,7 @@ std::string generatePrintByTypeArray(const struct Declaration &declaration) {
     ss << "      printf(\"%c \", curel);\n";
 
   } else {
-  // TODO: Handle other types; currently default to int
+    // TODO: Handle other types; currently default to int
 #if ENABLE_WARNINGS
     llvm::outs() << "\ngenerateCompareResults: I don't know how to print "
                     "results of type '"

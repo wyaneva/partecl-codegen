@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Vanya Yaneva, The University of Edinburgh
+ * Copyright 2016-2018 Vanya Yaneva, The University of Edinburgh
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,6 +48,7 @@ const char *const ARGC = "argc";
 const char *const INPUT = "partecl_input";
 const char *const RESULT = "partecl_result";
 const char *const TEST_CASE_NUM = "test_case_num";
+const char *const PADDED_INPUT_ARRAY_SIZE = "PADDED_INPUT_ARRAY_SIZE";
 const int POINTER_ARRAY_SIZE = 500;
 } // namespace structs_constants
 
