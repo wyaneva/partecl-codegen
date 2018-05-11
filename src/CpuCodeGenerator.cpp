@@ -235,7 +235,11 @@ void generatePopulateInput(std::ofstream &strFile, struct Declaration input,
             << "      " << name << "_ptr++;\n"
             << "      idx++;\n"
             << "    }\n"
-            << "    input->" << name << "[idx] = \'\\0\';\n";
+            << "    for(int i = idx; i < "
+            << structs_constants::PADDED_INPUT_ARRAY_SIZE << "; i++)\n"
+            << "    {\n"
+            << "    input->" << name << "[i] = \'\\0\';\n"
+            << "    }\n";
     // not pointers
   } else if (contains(input.type, "int")) {
     strFile << "    input->" << name << " = "
