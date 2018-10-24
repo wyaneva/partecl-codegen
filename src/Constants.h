@@ -50,6 +50,7 @@ const char *const RESULT = "partecl_result";
 const char *const TEST_CASE_NUM = "test_case_num";
 const char *const PADDED_INPUT_ARRAY_SIZE = "PADDED_INPUT_ARRAY_SIZE";
 const int POINTER_ARRAY_SIZE = 500;
+const char *const FSM_CONST_HEADER = "fsm_const.h";
 } // namespace structs_constants
 
 #endif

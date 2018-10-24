@@ -64,13 +64,10 @@ void generateStructs(
   for (auto &include : includes) {
     strFile << "#include \"" << include << "\"\n";
   }
-  strFile << "#define " << structs_constants::PADDED_INPUT_ARRAY_SIZE << " "
-          << structs_constants::POINTER_ARRAY_SIZE << "\n";
+  strFile << "#include \"" << structs_constants::FSM_CONST_HEADER << "\"\n";
   strFile << "\n";
   strFile << "typedef struct " << structs_constants::INPUT << "\n";
   strFile << "{\n";
-  strFile << "  int " << structs_constants::TEST_CASE_NUM << ";\n";
-  strFile << "  int " << structs_constants::ARGC << ";\n";
 
   for (auto &inputDecl : inputDeclarations) {
     generateDeclaration(strFile, inputDecl);
@@ -85,7 +82,6 @@ void generateStructs(
   // write result
   strFile << "typedef struct " << structs_constants::RESULT << "\n";
   strFile << "{\n";
-  strFile << "  int test_case_num;\n";
   for (auto &resultDecl : resultDeclarations) {
     generateDeclaration(strFile, resultDecl.declaration);
   }
@@ -104,7 +100,7 @@ void generateStructs(
 std::string generatePrintByTypeNonArray(const struct Declaration &declaration) {
   std::stringstream ss;
 
-  ss << "printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM
+  ss << "    printf(\"TC %d: \", i+1"
      << ");\n";
 
   if (declaration.type == "int") {
@@ -129,18 +125,27 @@ std::string generatePrintByTypeNonArray(const struct Declaration &declaration) {
 }
 
 std::string generatePrintByTypeArray(const struct Declaration &declaration) {
-  std::stringstream ss;
-  if (declaration.type == "int") {
 
+  std::stringstream ss;
+
+  if (declaration.type == "int") {
+    ss << "    for(int k = 0; k < " << declaration.size << "; k++)\n";
+    ss << "    {\n";
     ss << "      int curel = "
        << "curres." << declaration.name << "[k];\n";
     ss << "      printf(\"%d \", curel);\n";
+    ss << "    }\n";
 
   } else if (declaration.type == "char") {
 
-    ss << "      char curel = "
-       << "curres." << declaration.name << "[k];\n";
-    ss << "      printf(\"%c \", curel);\n";
+    std::string ptrname = declaration.name + "ptr";
+
+    ss << "    char* " << ptrname << " = curres." << declaration.name << ";\n";
+    ss << "    while(*" << ptrname << " != \'\\0\')\n";
+    ss << "    {\n";
+    ss << "      printf(\"%c \", *" << ptrname << ");\n";
+    ss << "      " << ptrname << "++;\n";
+    ss << "    }\n";
 
   } else {
     // TODO: Handle other types; currently default to int
@@ -150,9 +155,12 @@ std::string generatePrintByTypeArray(const struct Declaration &declaration) {
                  << declaration.type << "'. Defaulting to 'int'.\n";
 #endif
 
+    ss << "    for(int k = 0; k < " << declaration.size << "; k++)\n";
+    ss << "    {\n";
     ss << "      int curel = "
        << "curres." << declaration.name << "[k];\n";
     ss << "      printf(\"%d \", curel);\n";
+    ss << "    }\n";
   }
   return ss.str();
 }
@@ -164,15 +172,14 @@ std::string generatePrintArray(const struct Declaration &declaration) {
   // if the size is not a numeric string, then it must be a member of the result
   // struct
   if (declaration.size.find_first_not_of("0123456789") != std::string::npos)
-    size = "curres." + declaration.size;
+    size = "curres." + size;
 
   std::stringstream ss;
-  ss << "    printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM
+  ss << "    printf(\"TC %d: \", i+1"
      << ");\n";
-  ss << "    for(int k = 0; k < " << size << "; k++)\n";
-  ss << "    {\n";
+
   ss << generatePrintByTypeArray(declaration);
-  ss << "    }\n";
+
   ss << "    printf(\"\\n\");\n";
   return ss.str();
 }
@@ -271,10 +278,6 @@ void generatePopulateInputs(std::ofstream &strFile,
   strFile << "void populate_inputs(struct " << structs_constants::INPUT
           << " *input, int argc, char** args, int stdinc, char** stdins)\n";
   strFile << "{\n";
-
-  strFile << "  input->" << structs_constants::TEST_CASE_NUM
-          << " = atoi(args[0]);\n";
-  strFile << "  input->" << structs_constants::ARGC << " = argc;\n";
 
   int i = -1; // command line args start from index 1
   for (auto &input : inputDecls) {
