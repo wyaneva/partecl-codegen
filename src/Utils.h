@@ -58,8 +58,8 @@ static std::map<std::string, std::string> functionToHeaderFile = {
     {"isupper", "cl-ctype.h"},  {"isxdigit", "cl-ctype.h"},
     {"isxlower", "cl-ctype.h"}, {"isxupper", "cl-ctype.h"},
     {"toascii", "cl-ctype.h"},  {"tolower", "cl-ctype.h"},
-    {"toupper", "cl-ctype.h"},  {"atoi", "cl-atoi.h"},
-    {"atol", "cl-atoi.h"},      {"fgets", "cl-stdio.h"},
+    {"toupper", "cl-ctype.h"},  {"atoi", "cl-stdlib.h"},
+    {"atol", "cl-stdlib.h"},      {"fgets", "cl-stdio.h"},
     {"fgetc", "cl-stdio.h"},    {"strcmp", "cl-string.h"},
     {"strlen", "cl-string.h"}};
 
