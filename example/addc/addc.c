@@ -10,9 +10,9 @@ int addc(int a, int b)
 
 int main(int argc, char* argv[])
 {
-  if(argc < 2)
+  if(argc < 3)
   {
-    printf("Please, enter an integer.\n");
+    printf("Please, enter two integers.\n");
     return 0;
   }
 
@@ -22,5 +22,5 @@ int main(int argc, char* argv[])
 
   int sum = addc(a, b);
 
-  printf("%d + %d + %c = %d\n", a, b, c, sum);
+  printf("%d + %d + %d = %d\n", a, b, c, sum);
 }
