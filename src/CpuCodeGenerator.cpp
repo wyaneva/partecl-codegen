@@ -212,7 +212,14 @@ void generatePopulateInput(std::ofstream &strFile, struct Declaration input,
 
   // for arrays, add a loop and indexes
   if (input.isArray) {
-    strFile << "  for(int i = 0; i < " << input.size << "; i++)\n";
+    std::stringstream size;
+    // if the size is not a numeric string, then make it a variable name
+    if (input.size.find_first_not_of("0123456789") != std::string::npos)
+      size << "input->" << input.size;
+    else
+      size << input.size;
+
+    strFile << "  for(int i = 0; i < " << size.str() << "; i++)\n";
     name.append("[i]");
     argsidx = "i+";
     argsidx.append(std::to_string(i + 1));
