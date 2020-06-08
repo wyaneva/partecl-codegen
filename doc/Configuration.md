@@ -61,10 +61,11 @@ Below is the full list of configuration options and how they are used.
     input: int array[10]
   ```
 
-* **stdin:** test case inputs, supplied through standard inputs; the tool assumes that all of them are supplied as one **char\*** input, separated via new line.
+* **stdin:** test case inputs, supplied through standard input; their type is always `char*`:
   ``` 
   Example:
-    stdin: char* stdin1
+    stdin: char* array 
+    stdin: char* number
   ```
 
 * **result:** the test case result. 
