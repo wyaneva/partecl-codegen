@@ -34,9 +34,8 @@ void generateDeclaration(std::ofstream &strFile,
   else
     size << declaration.size;
 
-  if (declaration.isPointer) { // turn a pointer into a static array
-    strFile << "  " << type << " " << declaration.name << "["
-            << structs_constants::POINTER_ARRAY_SIZE << "];\n";
+  if (declaration.isPointer) { // add the star to delcaraiont
+    strFile << "  " << type << "* " << declaration.name << ";\n";
   } else if (declaration.isArray) {
     strFile << "  " << type << " " << declaration.name << "[" << size.str()
             << "];\n";
@@ -231,16 +230,11 @@ void generatePopulateInput(std::ofstream &strFile, struct Declaration input,
   // pointers
   // TODO: add handling for pointers which are not 'char *'
   if (input.isPointer) {
-    strFile << "    char *" << name << "_ptr = " << container << "[" << argsidx
-            << "];\n"
-            << "    int idx = 0;\n"
-            << "    while(*" << name << "_ptr != \'\\0\')\n"
-            << "    {\n"
-            << "      input->" << name << "[idx] = *" << name << "_ptr;\n"
-            << "      " << name << "_ptr++;\n"
-            << "      idx++;\n"
-            << "    }\n"
-            << "    input->" << name << "[idx] = \'\\0\';\n";
+    strFile << "    int len = strlen(" << container << "[" << argsidx << "]);\n"
+            << "    input->" << name
+            << " = (char *)malloc(sizeof(char *)*len);\n"
+            << "    strcpy(input->" << name << ", " << container << "["
+            << argsidx << "]);\n";
     // not pointers
   } else if (contains(input.type, "int")) {
     strFile << "    input->" << name << " = "
