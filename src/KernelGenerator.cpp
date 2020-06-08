@@ -84,13 +84,17 @@ std::map<const CallExpr *, std::list<std::string>> funcCallToAddedArgs;
 // a list of include files to add
 std::list<std::string> includesToAdd;
 
+void replaceSourceRange(const SourceRange range, llvm::StringRef newRangeSource,
+                        Rewriter *rewriter) {
+  int rangeSize = rewriter->getRangeSize(range);
+  SourceLocation locStart = range.getBegin();
+  rewriter->ReplaceText(locStart, rangeSize, newRangeSource);
+}
+
 void replaceParam(const ParmVarDecl *paramDecl, llvm::StringRef newParamSource,
                   Rewriter *rewriter) {
   SourceRange range = paramDecl->getSourceRange();
-  int rangeSize = rewriter->getRangeSize(range);
-  SourceLocation locStart = range.getBegin();
-
-  rewriter->ReplaceText(locStart, rangeSize, newParamSource);
+  replaceSourceRange(range, newParamSource, rewriter);
 }
 
 void addNewParam(const FunctionDecl *funcDecl, llvm::StringRef newParamSource,
@@ -587,7 +591,8 @@ public:
 auto stdinMatcher =
     callExpr(hasAncestor(functionDecl().bind("stdinCaller")),
              hasAnyArgument(ignoringImpCasts(
-                 declRefExpr(to(varDecl(hasName("stdin")))).bind("stdinArg"))))
+                 declRefExpr(to(varDecl(hasName("stdin")))).bind("stdinArg")))
+             )
         .bind("stdin");
 class StdinHandler : public MatchFinder::MatchCallback {
 private:
@@ -621,36 +626,10 @@ public:
     if (isMain(caller))
       inputRef.append("input_gen.");
     else
-      inputRef.append("(*input_gen).");
+      inputRef.append("input_gen->");
 
     inputRef.append(stdinInput->name);
     replaceArgument(stdinCallExpr, stdinArgExpr, inputRef, &rewriter);
-
-    /* commentOutLine(stdinExpr->getSourceRange(), &rewriter);
-    string newSource;
-
-    string stdinString;
-    llvm::raw_string_ostream s(stdinString);
-    stdinExpr->getArg(0)->printPretty(s, 0, printingPolicy);
-
-    newSource.append("int i_gen = 0;\n");
-    newSource.append("while(*(");
-    newSource.append(inputRef);
-    newSource.append("+i_gen) != \'\\0\')\n");
-    newSource.append("{\n");
-    newSource.append("  *(");
-    newSource.append(s.str());
-    newSource.append("+i_gen) = *(");
-    newSource.append(inputRef);
-    newSource.append("+i_gen);\n");
-    newSource.append("  i_gen++;\n");
-    newSource.append("}\n");
-    newSource.append("*(");
-    newSource.append(s.str());
-    newSource.append("+i_gen) = \'\\0\';\n");
-
-    insertOnNewLineAfter(stdinExpr->getSourceRange(), newSource, &rewriter);
-    */
   }
 };
 
@@ -697,11 +676,11 @@ public:
     std::stringstream eInsertion;
 
     // append idx, input, argc and results lines
-    bbInsertion << "\n  int idx = get_global_id(0);\n";
+    bbInsertion << "\n  int partecl_idx = get_global_id(0);\n";
     bbInsertion << "  struct " << structs_constants::INPUT
-                << " input_gen = inputs[idx];\n";
+                << " input_gen = inputs[partecl_idx];\n";
     bbInsertion << "  __global struct " << structs_constants::RESULT
-                << " *result_gen = &results[idx];\n";
+                << " *result_gen = &results[partecl_idx];\n";
     bbInsertion << "  int " << structs_constants::ARGC
                 << " = input_gen.argc;\n";
     bbInsertion << "  result_gen->" << structs_constants::TEST_CASE_NUM
@@ -823,6 +802,27 @@ public:
       auto range = expr->getSourceRange();
       commentOut(range, &rewriter);
     }
+  }
+};
+
+// find variable length arrays
+// turn them into constant length arrays
+auto variableLengthArraysMatcher = varDecl(hasType(variableArrayType().bind("variableLengthArrayType")));
+class VariableLengthArraysHandler : public MatchFinder::MatchCallback {
+private:
+  Rewriter &rewriter;
+
+public:
+  VariableLengthArraysHandler(Rewriter &rewrite) : rewriter(rewrite) {}
+
+  virtual void run(const MatchFinder::MatchResult &Result) {
+    const VariableArrayType *type =
+        Result.Nodes.getNodeAs<VariableArrayType>("variableLengthArrayType");
+
+    SourceRange bracketsRange = type->getBracketsRange();
+    std::stringstream newBracketExpr;
+    newBracketExpr << "[" << structs_constants::POINTER_ARRAY_SIZE << "]";
+    replaceSourceRange(bracketsRange, newBracketExpr.str(), &rewriter);
   }
 };
 
@@ -1325,6 +1325,7 @@ class KernelGenClassConsumer : public clang::ASTConsumer {
 private:
   MatchFinder argvMatchFinder;
   MatchFinder ioMatchFinder;
+  MatchFinder variableLengthArraysMatchFinder;
   MatchFinder discoverGlobalVarsMatchFinder;
   MatchFinder rewriteGlobalVarsMatchFinder;
   MatchFinder mainMatchFinder;
@@ -1342,6 +1343,9 @@ private:
 
   // I/O
   CommentOutHandler commentOutHandler;
+
+  // variable length arrays
+  VariableLengthArraysHandler variableLengthArraysHandler;
 
   // global vars
   GlobalVarHandler globalVarHandler;
@@ -1368,8 +1372,9 @@ public:
   KernelGenClassConsumer(Rewriter &R)
       : argvInAtoiHandler(R), argvHandler(R), stdinHandler(R),
         stdinAsParamsHandler(R), stdinAsArgsHandler(R), commentOutHandler(R),
-        globalVarHandler(R), globalVarUseHandler(R), calleeToCallerHandler(),
-        inputsHandler(), resultsHandler(), inputsAndResultsAsParamsHandler(R),
+        variableLengthArraysHandler(R), globalVarHandler(R),
+        globalVarUseHandler(R), calleeToCallerHandler(), inputsHandler(),
+        resultsHandler(), inputsAndResultsAsParamsHandler(R),
         inputsAndResultsAsArgsHandler(R), globalVarsAsParamsHandler(R),
         globalVarsAsArgsHandler(R), testedValueFunctionCallHandler(R),
         mainHandler(R), returnInMainHandler(R), includesHandler() {
@@ -1378,6 +1383,9 @@ public:
     argvMatchFinder.addMatcher(argvMatcher, &argvHandler);
 
     ioMatchFinder.addMatcher(commentOutMatcher, &commentOutHandler);
+
+    variableLengthArraysMatchFinder.addMatcher(variableLengthArraysMatcher,
+                                               &variableLengthArraysHandler);
 
     discoverGlobalVarsMatchFinder.addMatcher(globalVarMatcher,
                                              &globalVarHandler);
@@ -1413,6 +1421,7 @@ public:
   void HandleTranslationUnit(ASTContext &Context) override {
     argvMatchFinder.matchAST(Context);
     ioMatchFinder.matchAST(Context);
+    variableLengthArraysMatchFinder.matchAST(Context);
     discoverGlobalVarsMatchFinder.matchAST(Context);
 
     findAllFunctionsWhichUseSpecialVars();
