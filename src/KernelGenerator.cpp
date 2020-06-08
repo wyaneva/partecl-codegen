@@ -298,8 +298,6 @@ bool isResultPrintedChatByChar(const struct ResultDeclaration &result) {
   return result.testedValue.name == "fputc";
 }
 
-bool isStdinUsed() { return functionsWhichUseStdin.size() > 0; }
-
 bool isMain(const FunctionDecl *decl) {
   return decl->getNameAsString() == "main";
 }
@@ -633,6 +631,45 @@ public:
   }
 };
 
+auto scanfMatcher = callExpr(callee(functionDecl(hasName("scanf"))),
+                             hasAncestor(functionDecl().bind("scanfCaller")))
+                        .bind("scanf");
+class ScanfHandler : public MatchFinder::MatchCallback {
+private:
+  Rewriter &rewriter;
+
+public:
+  ScanfHandler(Rewriter &rewrite) : rewriter(rewrite) {}
+
+  virtual void run(const MatchFinder::MatchResult &Result) {
+    const CallExpr *stdinCallExpr = Result.Nodes.getNodeAs<CallExpr>("scanf");
+    const FunctionDecl *functionDecl = stdinCallExpr->getDirectCallee();
+    const FunctionDecl *caller =
+        Result.Nodes.getNodeAs<FunctionDecl>("scanfCaller");
+
+    // add function in the list of functions
+    functionsWhichUseStdin.push_back(functionDecl);
+
+    // stdin argument to the call of scanf
+    auto stdinInput = stdinInputs.begin();
+    if (stdinInput == stdinInputs.end()) {
+      llvm::outs() << "There are fewer stdin parameters supplied than there "
+                      "are references to stdin in the code.\n";
+      return;
+    }
+
+    stdinInputs.pop_front();
+    std::string inputRef;
+    if (isMain(caller))
+      inputRef.append("&input_gen.");
+    else
+      inputRef.append("&input_gen->");
+
+    inputRef.append(stdinInput->name);
+    addNewArgument(stdinCallExpr, inputRef, &rewriter);
+  }
+};
+
 auto mainMatcher = functionDecl(hasName("main")).bind("mainDecl");
 class MainHandler : public MatchFinder::MatchCallback {
 private:
@@ -722,12 +759,6 @@ public:
       if (isResultPrintedChatByChar(result)) {
         bbInsertion << "  int res_count_gen;\n"
                     << "  res_count_gen = 0;\n";
-      }
-
-      // add declaration for counter in case stdin stream is used
-      if (isStdinUsed()) {
-        bbInsertion << "  int stdin_count_gen;\n"
-                    << "  stdin_count_gen = 0;\n";
       }
 
       // character termination in case result is printed char by char
@@ -1128,62 +1159,6 @@ public:
   }
 };
 
-auto stdinAsArgsMatcher =
-    callExpr(hasAncestor(functionDecl().bind("stdinAsArgsCaller")))
-        .bind("stdinAsArgs");
-class StdinAsArgsHandler : public MatchFinder::MatchCallback {
-private:
-  Rewriter &rewriter;
-
-public:
-  StdinAsArgsHandler(Rewriter &rewrite) : rewriter(rewrite) {}
-
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    const CallExpr *call = Result.Nodes.getNodeAs<CallExpr>("stdinAsArgs");
-    const FunctionDecl *caller =
-        Result.Nodes.getNodeAs<FunctionDecl>("stdinAsArgsCaller");
-
-    // find out if this is a call to a function which inputs and results
-    auto funcDecl = call->getDirectCallee();
-
-    if (isMain(funcDecl))
-      return;
-
-    if (containsRefToStdin(funcDecl)) {
-      std::string newArg;
-      if (isMain(caller)) {
-        newArg.append("&");
-      }
-      newArg.append("stdin_count_gen");
-      addNewArgument(call, newArg, &rewriter);
-    }
-  }
-};
-
-auto stdinAsParamsMatcher = functionDecl().bind("stdinAsParams");
-class StdinAsParamsHandler : public MatchFinder::MatchCallback {
-private:
-  Rewriter &rewriter;
-
-public:
-  StdinAsParamsHandler(Rewriter &rewrite) : rewriter(rewrite) {}
-
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    auto *decl = Result.Nodes.getNodeAs<FunctionDecl>("stdinAsParams");
-
-    // do not add new parameters to "main"
-    if (isMain(decl))
-      return;
-
-    if (containsRefToStdin(decl)) {
-      // add the result to the function's argument list
-      std::string newParam;
-      newParam.append("int *stdin_count_gen");
-      addNewParam(decl, newParam, &rewriter);
-    }
-  }
-};
-
 // Handle tested values which are in function calls
 // auto functionToTestMatcher = callExpr(
 auto testedValueFunctionCallMatcher =
@@ -1338,8 +1313,7 @@ private:
 
   // stdin
   StdinHandler stdinHandler;
-  StdinAsParamsHandler stdinAsParamsHandler;
-  StdinAsArgsHandler stdinAsArgsHandler;
+  ScanfHandler scanfHandler;
 
   // I/O
   CommentOutHandler commentOutHandler;
@@ -1370,11 +1344,10 @@ private:
 
 public:
   KernelGenClassConsumer(Rewriter &R)
-      : argvInAtoiHandler(R), argvHandler(R), stdinHandler(R),
-        stdinAsParamsHandler(R), stdinAsArgsHandler(R), commentOutHandler(R),
-        variableLengthArraysHandler(R), globalVarHandler(R),
-        globalVarUseHandler(R), calleeToCallerHandler(), inputsHandler(),
-        resultsHandler(), inputsAndResultsAsParamsHandler(R),
+      : argvInAtoiHandler(R), argvHandler(R), stdinHandler(R), scanfHandler(R),
+        commentOutHandler(R), variableLengthArraysHandler(R),
+        globalVarHandler(R), globalVarUseHandler(R), calleeToCallerHandler(),
+        inputsHandler(), resultsHandler(), inputsAndResultsAsParamsHandler(R),
         inputsAndResultsAsArgsHandler(R), globalVarsAsParamsHandler(R),
         globalVarsAsArgsHandler(R), testedValueFunctionCallHandler(R),
         mainHandler(R), returnInMainHandler(R), includesHandler() {
@@ -1396,6 +1369,7 @@ public:
     discoverGlobalVarsMatchFinder.addMatcher(inputsMatcher, &inputsHandler);
     discoverGlobalVarsMatchFinder.addMatcher(resultsMatcher, &resultsHandler);
     discoverGlobalVarsMatchFinder.addMatcher(stdinMatcher, &stdinHandler);
+    discoverGlobalVarsMatchFinder.addMatcher(scanfMatcher, &scanfHandler);
 
     rewriteGlobalVarsMatchFinder.addMatcher(globalVarsAsParamsMatcher,
                                             &globalVarsAsParamsHandler);
@@ -1405,10 +1379,6 @@ public:
                                             &inputsAndResultsAsParamsHandler);
     rewriteGlobalVarsMatchFinder.addMatcher(inputsAndResultsAsArgsMatcher,
                                             &inputsAndResultsAsArgsHandler);
-    rewriteGlobalVarsMatchFinder.addMatcher(stdinAsParamsMatcher,
-                                            &stdinAsParamsHandler);
-    rewriteGlobalVarsMatchFinder.addMatcher(stdinAsArgsMatcher,
-                                            &stdinAsArgsHandler);
 
     mainMatchFinder.addMatcher(testedValueFunctionCallMatcher,
                                &testedValueFunctionCallHandler);
