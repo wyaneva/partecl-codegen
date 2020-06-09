@@ -24,6 +24,6 @@
 void generateKernel(clang::tooling::ClangTool *, std::string,
                     std::map<int, std::string>, std::list<struct Declaration>,
                     std::list<struct Declaration>,
-                    std::list<struct ResultDeclaration>);
+                    std::list<struct OutputDeclaration>);
 
 #endif

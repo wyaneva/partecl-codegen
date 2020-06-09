@@ -22,10 +22,10 @@
 
 void generateStructs(const std::string &, const std::list<struct Declaration> &,
                      const std::list<struct Declaration> &,
-                     const std::list<struct ResultDeclaration> &,
+                     const std::list<struct OutputDeclaration> &,
                      const std::list<std::string> &);
 
 void generateCpuGen(const std::string &, const std::list<struct Declaration> &,
-                    const std::list<struct ResultDeclaration> &,
+                    const std::list<struct OutputDeclaration> &,
                     const std::list<struct Declaration> &);
 #endif

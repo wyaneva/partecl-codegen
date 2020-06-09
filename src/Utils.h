@@ -31,7 +31,7 @@ enum class TestedValueType { functionCall, variable };
 static struct TestedValue {
   std::string name;
   TestedValueType type;
-  int resultArg; // set to -1 if the user is interested in the return result or
+  int outputArg; // set to -1 if the user is interested in the return output or
                  // type is variable
 } TestedValue;
 
@@ -44,10 +44,10 @@ static struct Declaration {
   std::string size; // set to empty when not array
 } Declaration;
 
-static struct ResultDeclaration {
+static struct OutputDeclaration {
   struct Declaration declaration;
   struct TestedValue testedValue;
-} ResultValue;
+} OutputValue;
 
 static std::map<std::string, std::string> functionToHeaderFile = {
     {"isalnum", "cl-ctype.h"},  {"isalpha", "cl-ctype.h"},

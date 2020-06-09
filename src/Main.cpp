@@ -53,12 +53,12 @@ int main(int argc, const char **argv) {
   std::map<int, std::string> argvIdxToInput;
   std::list<struct Declaration> stdinInputs;
   std::list<struct Declaration> inputDeclarations;
-  std::list<struct ResultDeclaration> resultDeclarations;
+  std::list<struct OutputDeclaration> outputDeclarations;
   std::list<std::string> includes;
 
   // parse the configuration file
   if (parseConfig(ConfigFilename, argvIdxToInput, stdinInputs,
-                  inputDeclarations, resultDeclarations,
+                  inputDeclarations, outputDeclarations,
                   includes) == status_constants::FAIL) {
     llvm::outs() << "\nFailed to parse the configuration file "
                  << ConfigFilename << ". \nTERMINATING!\n";
@@ -66,15 +66,15 @@ int main(int argc, const char **argv) {
   }
 
   // generate the struct file
-  generateStructs(OutputDir, stdinInputs, inputDeclarations, resultDeclarations,
+  generateStructs(OutputDir, stdinInputs, inputDeclarations, outputDeclarations,
                   includes);
   // generate CPU code
-  generateCpuGen(OutputDir, inputDeclarations, resultDeclarations, stdinInputs);
+  generateCpuGen(OutputDir, inputDeclarations, outputDeclarations, stdinInputs);
 
   // generate kernel
   clang::tooling::ClangTool Tool(OptionsParser.getCompilations(),
                                  OptionsParser.getSourcePathList());
 
   generateKernel(&Tool, OutputDir, argvIdxToInput, inputDeclarations,
-                 stdinInputs, resultDeclarations);
+                 stdinInputs, outputDeclarations);
 }

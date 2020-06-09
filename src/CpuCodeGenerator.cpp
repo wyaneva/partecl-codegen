@@ -48,7 +48,7 @@ void generateStructs(
     const std::string &outputDirectory,
     const std::list<struct Declaration> &stdinInputs,
     const std::list<struct Declaration> &inputDeclarations,
-    const std::list<struct ResultDeclaration> &resultDeclarations,
+    const std::list<struct OutputDeclaration> &outputDeclarations,
     const std::list<std::string> &includes) {
   llvm::outs() << "Generating memory buffer structs... ";
 
@@ -79,14 +79,14 @@ void generateStructs(
 
   strFile << "} " << structs_constants::INPUT << ";\n\n";
 
-  // write result
-  strFile << "typedef struct " << structs_constants::RESULT << "\n";
+  // write output 
+  strFile << "typedef struct " << structs_constants::OUTPUT << "\n";
   strFile << "{\n";
   strFile << "  int test_case_num;\n";
-  for (auto &resultDecl : resultDeclarations) {
-    generateDeclaration(strFile, resultDecl.declaration);
+  for (auto &outputDecl : outputDeclarations) {
+    generateDeclaration(strFile, outputDecl.declaration);
   }
-  strFile << "} " << structs_constants::RESULT << ";\n\n";
+  strFile << "} " << structs_constants::OUTPUT<< ";\n\n";
 
   strFile << "#endif\n";
   strFile.close();
@@ -101,26 +101,26 @@ void generateStructs(
 std::string generatePrintByTypeNonArray(const struct Declaration &declaration) {
   std::stringstream ss;
 
-  ss << "printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM
+  ss << "printf(\"TC %d: \", curout." << structs_constants::TEST_CASE_NUM
      << ");\n";
 
   if (declaration.type == "int") {
 
-    ss << "printf(\"%d \\n\", curres." << declaration.name << ");\n";
+    ss << "printf(\"%d \\n\", curout." << declaration.name << ");\n";
 
   } else if (declaration.type == "char") {
 
-    ss << "printf(\"%c \\n\", curres." << declaration.name << ");\n";
+    ss << "printf(\"%c \\n\", curout." << declaration.name << ");\n";
 
   } else {
 
   // TODO: Handle other types; currently default to int
 #if ENABLE_WARNINGS
-    llvm::outs() << "\ngenerateCompareResults: I don't know how to print "
-                    "results of type '"
-                 << resultDecl.declaration.type << "'. Defaulting to 'int'.\n";
+    llvm::outs() << "\ngenerateCompareOutputs: I don't know how to print "
+                    "outputs of type '"
+                 << outputDecl.declaration.type << "'. Defaulting to 'int'.\n";
 #endif
-    ss << "printf(\"%d \", curres." << declaration.name << ");\n";
+    ss << "printf(\"%d \", curout." << declaration.name << ");\n";
   }
   return ss.str();
 }
@@ -130,25 +130,25 @@ std::string generatePrintByTypeArray(const struct Declaration &declaration) {
   if (declaration.type == "int") {
 
     ss << "      int curel = "
-       << "curres." << declaration.name << "[k];\n";
+       << "curout." << declaration.name << "[k];\n";
     ss << "      printf(\"%d \", curel);\n";
 
   } else if (declaration.type == "char") {
 
     ss << "      char curel = "
-       << "curres." << declaration.name << "[k];\n";
+       << "curout." << declaration.name << "[k];\n";
     ss << "      printf(\"%c \", curel);\n";
 
   } else {
   // TODO: Handle other types; currently default to int
 #if ENABLE_WARNINGS
-    llvm::outs() << "\ngenerateCompareResults: I don't know how to print "
-                    "results of type '"
+    llvm::outs() << "\ngenerateCompareOutputs: I don't know how to print "
+                    "outputs of type '"
                  << declaration.type << "'. Defaulting to 'int'.\n";
 #endif
 
     ss << "      int curel = "
-       << "curres." << declaration.name << "[k];\n";
+       << "curout." << declaration.name << "[k];\n";
     ss << "      printf(\"%d \", curel);\n";
   }
   return ss.str();
@@ -158,13 +158,13 @@ std::string generatePrintArray(const struct Declaration &declaration) {
 
   std::string size = declaration.size;
 
-  // if the size is not a numeric string, then it must be a member of the result
+  // if the size is not a numeric string, then it must be a member of the output 
   // struct
   if (declaration.size.find_first_not_of("0123456789") != std::string::npos)
-    size = "curres." + declaration.size;
+    size = "curout." + declaration.size;
 
   std::stringstream ss;
-  ss << "    printf(\"TC %d: \", curres." << structs_constants::TEST_CASE_NUM
+  ss << "    printf(\"TC %d: \", curout." << structs_constants::TEST_CASE_NUM
      << ");\n";
   ss << "    for(int k = 0; k < " << size << "; k++)\n";
   ss << "    {\n";
@@ -174,31 +174,31 @@ std::string generatePrintArray(const struct Declaration &declaration) {
   return ss.str();
 }
 
-std::string generatePrintCalls(const struct ResultDeclaration &resultDecl) {
+std::string generatePrintCalls(const struct OutputDeclaration &outputDecl) {
   std::string str;
-  if (resultDecl.declaration.isArray) {
-    str = generatePrintArray(resultDecl.declaration);
+  if (outputDecl.declaration.isArray) {
+    str = generatePrintArray(outputDecl.declaration);
   } else {
-    str = generatePrintByTypeNonArray(resultDecl.declaration);
+    str = generatePrintByTypeNonArray(outputDecl.declaration);
   }
 
   return str;
 }
 
-void generateCompareResults(
+void generateCompareOutputs(
     std::ofstream &strFile,
-    const std::list<struct ResultDeclaration> &resultDecls) {
-  strFile << "void compare_results(struct " << structs_constants::RESULT
-          << "* results, struct " << structs_constants::RESULT
-          << "* exp_results, int num_test_cases)\n";
+    const std::list<struct OutputDeclaration> &outputDecls) {
+  strFile << "void compare_outputs(struct " << structs_constants::OUTPUT
+          << "* outputs, struct " << structs_constants::OUTPUT
+          << "* exp_outputs, int num_test_cases)\n";
   strFile << "{\n";
   strFile << "  for(int i = 0; i < num_test_cases; i++)\n";
   strFile << "  {\n";
-  strFile << "    struct " << structs_constants::RESULT
-          << " curres = results[i];\n";
-  for (auto &resultDecl : resultDecls) {
+  strFile << "    struct " << structs_constants::OUTPUT
+          << " curout = outputs[i];\n";
+  for (auto &outputDecl : outputDecls) {
     // TODO: Find out how to compare; for now just print
-    strFile << generatePrintCalls(resultDecl);
+    strFile << generatePrintCalls(outputDecl);
   }
   strFile << "  }\n";
   strFile << "}\n";
@@ -289,7 +289,7 @@ void generatePopulateInputs(std::ofstream &strFile,
 
 void generateCpuGen(const std::string &outputDirectory,
                     const std::list<struct Declaration> &inputs,
-                    const std::list<struct ResultDeclaration> &results,
+                    const std::list<struct OutputDeclaration> &outputs,
                     const std::list<struct Declaration> &stdinInputs) {
   llvm::outs() << "Generating CPU code... ";
 
@@ -304,8 +304,8 @@ void generateCpuGen(const std::string &outputDirectory,
   headerFile << "#include \"structs.h\"\n\n";
   headerFile << "void populate_inputs(struct " << structs_constants::INPUT
              << "*, int, char**, int, char**);\n\n";
-  headerFile << "void compare_results(struct " << structs_constants::RESULT
-             << "*, struct " << structs_constants::RESULT << "*, int);\n\n";
+  headerFile << "void compare_outputs(struct " << structs_constants::OUTPUT
+             << "*, struct " << structs_constants::OUTPUT << "*, int);\n\n";
   headerFile << "#endif\n";
 
   headerFile.close();
@@ -322,7 +322,7 @@ void generateCpuGen(const std::string &outputDirectory,
   strFile << "#include \"cpu-gen.h\"\n\n";
 
   generatePopulateInputs(strFile, inputs, stdinInputs);
-  generateCompareResults(strFile, results);
+  generateCompareOutputs(strFile, outputs);
 
   strFile.close();
 

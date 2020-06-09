@@ -35,7 +35,7 @@
 #include <string>
 
 #define INPUT_1 1
-#define RESULT_1 2
+#define OUTPUT_1 2
 
 using namespace clang;
 using namespace clang::tooling;
@@ -53,7 +53,7 @@ std::map<const SourceLocation, bool> locationToPointerDereferenced;
 std::list<struct Declaration> inputs;
 std::map<std::string, bool> inputsToIsAddedDeclaration;
 std::list<struct Declaration> stdinInputs;
-std::list<struct ResultDeclaration> results;
+std::list<struct OutputDeclaration> outputs;
 
 // a list of all the global vars
 std::list<const VarDecl *> globalVars;
@@ -63,7 +63,7 @@ std::list<const VarDecl *> globalVars;
 // function calls
 std::map<const FunctionDecl *, std::vector<const ValueDecl *>> funcToGlobalVars;
 std::vector<const FunctionDecl *> functionsWhichUseTestInputs;
-std::vector<const FunctionDecl *> functionsWhichUseTestResults;
+std::vector<const FunctionDecl *> functionsWhichUseTestOutputs;
 std::vector<const FunctionDecl *> functionsWhichUseStdin;
 
 // a map of function calls to their caller
@@ -283,10 +283,10 @@ bool containsRefToInput(const FunctionDecl *decl) {
               decl) != functionsWhichUseTestInputs.end();
 }
 
-bool containsRefToResult(const FunctionDecl *decl) {
-  return find(functionsWhichUseTestResults.begin(),
-              functionsWhichUseTestResults.end(),
-              decl) != functionsWhichUseTestResults.end();
+bool containsRefToOutput(const FunctionDecl *decl) {
+  return find(functionsWhichUseTestOutputs.begin(),
+              functionsWhichUseTestOutputs.end(),
+              decl) != functionsWhichUseTestOutputs.end();
 }
 
 bool containsRefToStdin(const FunctionDecl *decl) {
@@ -294,8 +294,8 @@ bool containsRefToStdin(const FunctionDecl *decl) {
               decl) != functionsWhichUseStdin.end();
 }
 
-bool isResultPrintedChatByChar(const struct ResultDeclaration &result) {
-  return result.testedValue.name == "fputc";
+bool isOutputPrintedChatByChar(const struct OutputDeclaration &output) {
+  return output.testedValue.name == "fputc";
 }
 
 bool isMain(const FunctionDecl *decl) {
@@ -333,10 +333,10 @@ void addGlobalVarsToFunctionDecl(const FunctionDecl *funcDecl,
   }
 }
 
-// recursively add inputs and results to the function and all functions which
+// recursively add inputs and outputs to the function and all functions which
 // call it
-void addInputAndResultsToFunctionDecl(const FunctionDecl *funcDecl,
-                                      int inputOrResult) {
+void addInputAndOutputsToFunctionDecl(const FunctionDecl *funcDecl,
+                                      int inputOrOutput) {
   auto callerDeclsTuple = funcDeclToCallerDecls.find(funcDecl);
   if (callerDeclsTuple == funcDeclToCallerDecls.end())
     return;
@@ -346,19 +346,19 @@ void addInputAndResultsToFunctionDecl(const FunctionDecl *funcDecl,
     if (isMain(callerDecl))
       continue;
 
-    switch (inputOrResult) {
+    switch (inputOrOutput) {
     case INPUT_1:
       if (!containsRefToInput(callerDecl))
         functionsWhichUseTestInputs.push_back(callerDecl);
       break;
 
-    case RESULT_1:
-      if (!containsRefToResult(callerDecl))
-        functionsWhichUseTestResults.push_back(callerDecl);
+    case OUTPUT_1:
+      if (!containsRefToOutput(callerDecl))
+        functionsWhichUseTestOutputs.push_back(callerDecl);
       break;
     }
 
-    addInputAndResultsToFunctionDecl(callerDecl, inputOrResult);
+    addInputAndOutputsToFunctionDecl(callerDecl, inputOrOutput);
   }
 }
 
@@ -381,7 +381,7 @@ void addStdinToFunctionDecl(const FunctionDecl *funcDecl) {
 
 // finds functions which call other functions that:
 // 1. call global variables directly
-// 2. use inputs and results
+// 2. use inputs and outputs
 // 3. use stdin
 void findAllFunctionsWhichUseSpecialVars() {
   for (auto &funcDeclTuple : funcDeclToCallerDecls) {
@@ -394,10 +394,10 @@ void findAllFunctionsWhichUseSpecialVars() {
     }
 
     if (containsRefToInput(funcDecl))
-      addInputAndResultsToFunctionDecl(funcDecl, INPUT_1);
+      addInputAndOutputsToFunctionDecl(funcDecl, INPUT_1);
 
-    if (containsRefToResult(funcDecl))
-      addInputAndResultsToFunctionDecl(funcDecl, RESULT_1);
+    if (containsRefToOutput(funcDecl))
+      addInputAndOutputsToFunctionDecl(funcDecl, OUTPUT_1);
 
     if (containsRefToStdin(funcDecl))
       addStdinToFunctionDecl(funcDecl);
@@ -487,9 +487,9 @@ private:
 public:
   ArgvHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
     if (const ArraySubscriptExpr *expr =
-            Result.Nodes.getNodeAs<clang::ArraySubscriptExpr>("argvArray")) {
+            Output.Nodes.getNodeAs<clang::ArraySubscriptExpr>("argvArray")) {
       // This reference to argv is not in a atoi call
       if (!argvIdxToIsReplaced[expr->getIdx()]) {
         std::string text = "input_gen.";
@@ -522,14 +522,14 @@ private:
 public:
   ArgvInAtoiHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
     bool shouldReplace = true;
 
     // Get the input parameter to match
     std::string newText = "input_gen.";
 
     if (const ArraySubscriptExpr *expr =
-            Result.Nodes.getNodeAs<ArraySubscriptExpr>("argvArray")) {
+            Output.Nodes.getNodeAs<ArraySubscriptExpr>("argvArray")) {
       argvIdxToIsReplaced[expr->getIdx()] = true;
 
       shouldReplace = getInputParamFromArgvIndex(expr, &newText);
@@ -540,7 +540,7 @@ public:
       }
     }
 
-    if (const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>("argvInAtoi")) {
+    if (const CallExpr *expr = Output.Nodes.getNodeAs<CallExpr>("argvInAtoi")) {
       if (shouldReplace) {
         SourceRange range = expr->getSourceRange();
         int length = rewriter.getRangeSize(range);
@@ -557,30 +557,30 @@ class InputsHandler : public MatchFinder::MatchCallback {
 public:
   InputsHandler() {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
     const FunctionDecl *inputCaller =
-        Result.Nodes.getNodeAs<FunctionDecl>("inputCaller");
+        Output.Nodes.getNodeAs<FunctionDecl>("inputCaller");
     if (!isMain(inputCaller) && !containsRefToInput(inputCaller))
       functionsWhichUseTestInputs.push_back(inputCaller);
   }
 };
 
-auto resultsMatcher = callExpr(hasAncestor(functionDecl().bind("resultCaller")),
+auto outputsMatcher = callExpr(hasAncestor(functionDecl().bind("outputCaller")),
                                callee(functionDecl()))
-                          .bind("resultCall");
-class ResultsHandler : public MatchFinder::MatchCallback {
+                          .bind("outputCall");
+class OutputsHandler : public MatchFinder::MatchCallback {
 public:
-  ResultsHandler() {}
+  OutputsHandler() {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    const CallExpr *resultCall = Result.Nodes.getNodeAs<CallExpr>("resultCall");
-    for (auto &result : results) {
-      if (resultCall->getDirectCallee()->getNameAsString() ==
-          result.testedValue.name) {
-        const FunctionDecl *resultCaller =
-            Result.Nodes.getNodeAs<FunctionDecl>("resultCaller");
-        if (!isMain(resultCaller) && !containsRefToResult(resultCaller))
-          functionsWhichUseTestResults.push_back(resultCaller);
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    const CallExpr *outputCall = Output.Nodes.getNodeAs<CallExpr>("outputCall");
+    for (auto &output : outputs) {
+      if (outputCall->getDirectCallee()->getNameAsString() ==
+          output.testedValue.name) {
+        const FunctionDecl *outputCaller =
+            Output.Nodes.getNodeAs<FunctionDecl>("outputCaller");
+        if (!isMain(outputCaller) && !containsRefToOutput(outputCaller))
+          functionsWhichUseTestOutputs.push_back(outputCaller);
       }
     }
   }
@@ -599,13 +599,13 @@ private:
 public:
   StdinHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    const CallExpr *stdinCallExpr = Result.Nodes.getNodeAs<CallExpr>("stdin");
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    const CallExpr *stdinCallExpr = Output.Nodes.getNodeAs<CallExpr>("stdin");
     const FunctionDecl *functionDecl = stdinCallExpr->getDirectCallee();
     const DeclRefExpr *stdinArgExpr =
-        Result.Nodes.getNodeAs<DeclRefExpr>("stdinArg");
+        Output.Nodes.getNodeAs<DeclRefExpr>("stdinArg");
     const FunctionDecl *caller =
-        Result.Nodes.getNodeAs<FunctionDecl>("stdinCaller");
+        Output.Nodes.getNodeAs<FunctionDecl>("stdinCaller");
 
     // add function in the list of functions
     functionsWhichUseStdin.push_back(functionDecl);
@@ -641,11 +641,11 @@ private:
 public:
   ScanfHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    const CallExpr *stdinCallExpr = Result.Nodes.getNodeAs<CallExpr>("scanf");
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    const CallExpr *stdinCallExpr = Output.Nodes.getNodeAs<CallExpr>("scanf");
     const FunctionDecl *functionDecl = stdinCallExpr->getDirectCallee();
     const FunctionDecl *caller =
-        Result.Nodes.getNodeAs<FunctionDecl>("scanfCaller");
+        Output.Nodes.getNodeAs<FunctionDecl>("scanfCaller");
 
     // add function in the list of functions
     functionsWhichUseStdin.push_back(functionDecl);
@@ -678,10 +678,10 @@ private:
 public:
   MainHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
     isMainFile = true;
 
-    const FunctionDecl *decl = Result.Nodes.getNodeAs<FunctionDecl>("mainDecl");
+    const FunctionDecl *decl = Output.Nodes.getNodeAs<FunctionDecl>("mainDecl");
 
     // rename and label as kernel
     std::string funcName = decl->getNameInfo().getName().getAsString();
@@ -700,9 +700,9 @@ public:
     replaceParam(paramDeclArgc, ssinput.str(), &rewriter);
 
     const ParmVarDecl *paramDeclArgv = decl->getParamDecl(1);
-    std::stringstream ssresult;
-    ssresult << "__global struct " << structs_constants::RESULT << "* results";
-    replaceParam(paramDeclArgv, ssresult.str(), &rewriter);
+    std::stringstream ssoutput;
+    ssoutput << "__global struct " << structs_constants::OUTPUT << "* outputs";
+    replaceParam(paramDeclArgv, ssoutput.str(), &rewriter);
 
     // add variables at the beginning of body
     Stmt *body = decl->getBody();
@@ -712,15 +712,15 @@ public:
     std::stringstream bbInsertion;
     std::stringstream eInsertion;
 
-    // append idx, input, argc and results lines
+    // append idx, input, argc and outputs lines
     bbInsertion << "\n  int partecl_idx = get_global_id(0);\n";
     bbInsertion << "  struct " << structs_constants::INPUT
                 << " input_gen = inputs[partecl_idx];\n";
-    bbInsertion << "  __global struct " << structs_constants::RESULT
-                << " *result_gen = &results[partecl_idx];\n";
+    bbInsertion << "  __global struct " << structs_constants::OUTPUT
+                << " *output_gen = &outputs[partecl_idx];\n";
     bbInsertion << "  int " << structs_constants::ARGC
                 << " = input_gen.argc;\n";
-    bbInsertion << "  result_gen->" << structs_constants::TEST_CASE_NUM
+    bbInsertion << "  output_gen->" << structs_constants::TEST_CASE_NUM
                 << " = input_gen." << structs_constants::TEST_CASE_NUM << ";\n";
 
     // add declarations for global variables
@@ -752,40 +752,40 @@ public:
         addAssignmentForArrayTestInputs(input, bbInsertion);
     }
 
-    // TODO: Handle multiple results more gracefully for fputc
-    for (auto &result : results) {
-      // add declaration for counter in case there is a result which is printed
+    // TODO: Handle multiple outputs more gracefully for fputc
+    for (auto &output : outputs) {
+      // add declaration for counter in case there is a output which is printed
       // char by char
-      if (isResultPrintedChatByChar(result)) {
-        bbInsertion << "  int res_count_gen;\n"
-                    << "  res_count_gen = 0;\n";
+      if (isOutputPrintedChatByChar(output)) {
+        bbInsertion << "  int out_count_gen;\n"
+                    << "  out_count_gen = 0;\n";
       }
 
-      // character termination in case result is printed char by char
-      if (isResultPrintedChatByChar(result)) {
-        eInsertion << "  *(result_gen->" << result.declaration.name
-                   << " + res_count_gen) = \'\\0\';\n";
+      // character termination in case output is printed char by char
+      if (isOutputPrintedChatByChar(output)) {
+        eInsertion << "  *(output_gen->" << output.declaration.name
+                   << " + out_count_gen) = \'\\0\';\n";
       }
 
-      // when the tested value is a variable, add an assignment to the result
+      // when the tested value is a variable, add an assignment to theoutput 
       // struct
-      if (result.testedValue.type == TestedValueType::variable) {
-        if (result.declaration.isArray) {
+      if (output.testedValue.type == TestedValueType::variable) {
+        if (output.declaration.isArray) {
           eInsertion << "  for(int i = 0; i < ";
-          eInsertion << result.declaration.size;
+          eInsertion << output.declaration.size;
           eInsertion << "; i++)\n";
           eInsertion << "  {\n";
-          eInsertion << "    result_gen->";
-          eInsertion << result.declaration.name;
+          eInsertion << "    output_gen->";
+          eInsertion << output.declaration.name;
           eInsertion << "[i] = ";
-          eInsertion << result.testedValue.name;
+          eInsertion << output.testedValue.name;
           eInsertion << "[i];\n";
           eInsertion << "  }\n";
         } else {
-          eInsertion << "  result_gen->";
-          eInsertion << result.declaration.name;
+          eInsertion << "  output_gen->";
+          eInsertion << output.declaration.name;
           eInsertion << " = ";
-          eInsertion << result.testedValue.name;
+          eInsertion << output.testedValue.name;
           eInsertion << ";\n";
         }
       }
@@ -808,9 +808,9 @@ private:
 public:
   ReturnInMainHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
     const ReturnStmt *returnStmt =
-        Result.Nodes.getNodeAs<ReturnStmt>("returnInMain");
+        Output.Nodes.getNodeAs<ReturnStmt>("returnInMain");
     commentOutToEndOfLine(returnStmt->getSourceRange(), rewriter);
   }
 };
@@ -823,8 +823,8 @@ private:
 public:
   CommentOutHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>("commentOut");
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    const CallExpr *expr = Output.Nodes.getNodeAs<CallExpr>("commentOut");
     auto funcName = expr->getDirectCallee()->getNameAsString();
 
     if (funcName == "printf" || funcName == "fprintf" || funcName == "exit" ||
@@ -846,9 +846,9 @@ private:
 public:
   VariableLengthArraysHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
     const VariableArrayType *type =
-        Result.Nodes.getNodeAs<VariableArrayType>("variableLengthArrayType");
+        Output.Nodes.getNodeAs<VariableArrayType>("variableLengthArrayType");
 
     SourceRange bracketsRange = type->getBracketsRange();
     std::stringstream newBracketExpr;
@@ -868,8 +868,8 @@ private:
 public:
   GlobalVarHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    if (const VarDecl *decl = Result.Nodes.getNodeAs<VarDecl>("globalVar")) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    if (const VarDecl *decl = Output.Nodes.getNodeAs<VarDecl>("globalVar")) {
       // find out if the declaration is global
       if (decl->isFileVarDecl() && !decl->hasExternalStorage()) {
         // comment out the global variable
@@ -899,10 +899,10 @@ private:
 public:
   GlobalVarUseHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
     const auto *decl =
-        Result.Nodes.getNodeAs<FunctionDecl>("globalVarUseFunction");
-    const auto *expr = Result.Nodes.getNodeAs<DeclRefExpr>("globalVarUse");
+        Output.Nodes.getNodeAs<FunctionDecl>("globalVarUseFunction");
+    const auto *expr = Output.Nodes.getNodeAs<DeclRefExpr>("globalVarUse");
 
     // do not add new parameters to "main"
     if (isMain(decl))
@@ -949,9 +949,9 @@ class CalleeToCallerHandler : public MatchFinder::MatchCallback {
 public:
   CalleeToCallerHandler() {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    const CallExpr *callee = Result.Nodes.getNodeAs<CallExpr>("callee");
-    const FunctionDecl *caller = Result.Nodes.getNodeAs<FunctionDecl>("caller");
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    const CallExpr *callee = Output.Nodes.getNodeAs<CallExpr>("callee");
+    const FunctionDecl *caller = Output.Nodes.getNodeAs<FunctionDecl>("caller");
 
     funcCallToCallerDecl[callee] = caller;
     auto decl = callee->getDirectCallee();
@@ -969,8 +969,8 @@ private:
 public:
   GlobalVarsAsParamsHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    auto *decl = Result.Nodes.getNodeAs<FunctionDecl>("globalVarsAsParams");
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    auto *decl = Output.Nodes.getNodeAs<FunctionDecl>("globalVarsAsParams");
 
     // do not add new parameters to "main"
     if (isMain(decl))
@@ -1023,10 +1023,10 @@ private:
 public:
   GlobalVarsAsArgsHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    const CallExpr *call = Result.Nodes.getNodeAs<CallExpr>("globalVarsAsArgs");
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    const CallExpr *call = Output.Nodes.getNodeAs<CallExpr>("globalVarsAsArgs");
     const FunctionDecl *caller =
-        Result.Nodes.getNodeAs<FunctionDecl>("globalVarsAsArgsCaller");
+        Output.Nodes.getNodeAs<FunctionDecl>("globalVarsAsArgsCaller");
 
     // find out if this is a call to a function which uses global vars
     auto funcDecl = call->getDirectCallee();
@@ -1057,18 +1057,18 @@ public:
 
 // Add parameters to the declarations of all functions which use global
 // variables
-auto inputsAndResultsAsParamsMatcher =
-    functionDecl().bind("inputsAndResultsAsParams");
-class InputsAndResultsAsParamsHandler : public MatchFinder::MatchCallback {
+auto inputsAndOutputsAsParamsMatcher =
+    functionDecl().bind("inputsAndOutputsAsParams");
+class InputsAndOutputsAsParamsHandler : public MatchFinder::MatchCallback {
 private:
   Rewriter &rewriter;
 
 public:
-  InputsAndResultsAsParamsHandler(Rewriter &rewrite) : rewriter(rewrite) {}
+  InputsAndOutputsAsParamsHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
     auto *decl =
-        Result.Nodes.getNodeAs<FunctionDecl>("inputsAndResultsAsParams");
+        Output.Nodes.getNodeAs<FunctionDecl>("inputsAndOutputsAsParams");
 
     // do not add new parameters to "main"
     if (isMain(decl))
@@ -1083,19 +1083,19 @@ public:
       addNewParam(decl, newParam, &rewriter);
     }
 
-    if (containsRefToResult(decl)) {
-      // add the result to the function's argument list
+    if (containsRefToOutput(decl)) {
+      // add the output to the function's argument list
       std::string newParam;
       newParam.append("__global struct");
-      newParam.append(structs_constants::RESULT);
-      newParam.append(" *result_gen");
+      newParam.append(structs_constants::OUTPUT);
+      newParam.append(" *output_gen");
       addNewParam(decl, newParam, &rewriter);
 
-      // if the result is printed char by char, add a pointer to the counter
-      for (auto &result : results) {
-        if (isResultPrintedChatByChar(result)) {
+      // if the output is printed char by char, add a pointer to the counter
+      for (auto &output : outputs) {
+        if (isOutputPrintedChatByChar(output)) {
           std::string newParam2;
-          newParam2.append("int *res_count_gen");
+          newParam2.append("int *out_count_gen");
           addNewParam(decl, newParam2, &rewriter);
           break;
         }
@@ -1104,24 +1104,24 @@ public:
   }
 };
 
-// Add arguments to function calls which use inputs and results
-auto inputsAndResultsAsArgsMatcher =
-    callExpr(hasAncestor(functionDecl().bind("inputsAndResultsAsArgsCaller")))
-        .bind("inputsAndResultsAsArgs");
-class InputsAndResultsAsArgsHandler : public MatchFinder::MatchCallback {
+// Add arguments to function calls which use inputs and outputs
+auto inputsAndOutputsAsArgsMatcher =
+    callExpr(hasAncestor(functionDecl().bind("inputsAndOutputsAsArgsCaller")))
+        .bind("inputsAndOutputsAsArgs");
+class InputsAndOutputsAsArgsHandler : public MatchFinder::MatchCallback {
 private:
   Rewriter &rewriter;
 
 public:
-  InputsAndResultsAsArgsHandler(Rewriter &rewrite) : rewriter(rewrite) {}
+  InputsAndOutputsAsArgsHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  virtual void run(const MatchFinder::MatchResult &Output) {
     const CallExpr *call =
-        Result.Nodes.getNodeAs<CallExpr>("inputsAndResultsAsArgs");
+        Output.Nodes.getNodeAs<CallExpr>("inputsAndOutputsAsArgs");
     const FunctionDecl *caller =
-        Result.Nodes.getNodeAs<FunctionDecl>("inputsAndResultsAsArgsCaller");
+        Output.Nodes.getNodeAs<FunctionDecl>("inputsAndOutputsAsArgsCaller");
 
-    // find out if this is a call to a function which inputs and results
+    // find out if this is a call to a function which inputs and outputs
     auto funcDecl = call->getDirectCallee();
 
     if (isMain(funcDecl))
@@ -1138,20 +1138,20 @@ public:
       addNewArgument(call, newArg, &rewriter);
     }
 
-    if (containsRefToResult(funcDecl)) {
-      // no need to add '&' in main, as result is a pointer
+    if (containsRefToOutput(funcDecl)) {
+      // no need to add '&' in main, as output is a pointer
       std::string newArg;
-      newArg.append("result_gen");
+      newArg.append("output_gen");
       addNewArgument(call, newArg, &rewriter);
 
-      // if the result is printed char by char, add a pointer to the counter
-      for (auto &result : results) {
-        if (isResultPrintedChatByChar(result)) {
+      // if the output is printed char by char, add a pointer to the counter
+      for (auto &output : outputs) {
+        if (isOutputPrintedChatByChar(output)) {
           std::string newArg2;
           if (isMain(caller)) {
             newArg2.append("&");
           }
-          newArg2.append("res_count_gen");
+          newArg2.append("out_count_gen");
           addNewArgument(call, newArg2, &rewriter);
         }
       }
@@ -1171,30 +1171,30 @@ private:
 public:
   TestedValueFunctionCallHandler(Rewriter &rewrite) : rewriter(rewrite) {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    for (auto &result : results) {
-      if (result.testedValue.type != TestedValueType::functionCall)
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    for (auto &output : outputs) {
+      if (output.testedValue.type != TestedValueType::functionCall)
         break;
 
-      const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>("functionToTest");
+      const CallExpr *expr = Output.Nodes.getNodeAs<CallExpr>("functionToTest");
 
       // find out if we are testing for a function call and this is a call to
       // the tested function
       auto name = expr->getDirectCallee()->getNameAsString();
-      auto resultDecl = results.front();
+      auto outputDecl = outputs.front();
 
-      if (name != result.testedValue.name)
+      if (name != output.testedValue.name)
         return;
 
-      std::string resultString;
+      std::string outputString;
 
-      if (result.testedValue.name == "fputc") {
-        if (resultDecl.declaration.type != "char*" &&
-            resultDecl.declaration.type != "char *") {
+      if (output.testedValue.name == "fputc") {
+        if (outputDecl.declaration.type != "char*" &&
+            outputDecl.declaration.type != "char *") {
           llvm::outs() << "The tested function is fputc, so the type of the "
-                          "result in the config file should be 'char *' and "
+                          "output in the config file should be 'char *' and "
                           "not '"
-                       << resultDecl.declaration.type
+                       << outputDecl.declaration.type
                        << "'. Please change it.\n";
         }
 
@@ -1203,29 +1203,29 @@ public:
         llvm::raw_string_ostream s(stringExpr);
         expr->getArg(0)->printPretty(s, 0, printingPolicy);
 
-        resultString.append("*(result_gen->");
-        resultString.append(resultDecl.declaration.name);
-        resultString.append(" + *res_count_gen) = ");
-        resultString.append(s.str());
-        resultString.append(";\n");
-        resultString.append("(*res_count_gen)++");
-        resultString.append(";\n");
-      } else if (result.testedValue.name == "fputs") {
+        outputString.append("*(output_gen->");
+        outputString.append(outputDecl.declaration.name);
+        outputString.append(" + *out_count_gen) = ");
+        outputString.append(s.str());
+        outputString.append(";\n");
+        outputString.append("(*out_count_gen)++");
+        outputString.append(";\n");
+      } else if (output.testedValue.name == "fputs") {
       }
       // TODO: add case for printf
       else {
         // user defined function
-        if (result.testedValue.resultArg <= 0) {
-          // we are interested in the return result
+        if (output.testedValue.outputArg <= 0) {
+          // we are interested in the returnoutput 
           std::string callString;
           llvm::raw_string_ostream s(callString);
           expr->printPretty(s, 0, printingPolicy);
 
-          // TODO: read results from test-params
-          resultString = "\nresult_gen->";
-          resultString.append(resultDecl.declaration.name);
-          resultString.append(" = ");
-          resultString.append(s.str());
+          // TODO: read outputs from test-params
+          outputString = "\noutput_gen->";
+          outputString.append(outputDecl.declaration.name);
+          outputString.append(" = ");
+          outputString.append(s.str());
 
           // if the function uses global vars, we need to add them as arguments
           // to the call
@@ -1235,45 +1235,45 @@ public:
             for (auto var = globalVars.begin(); var != globalVars.end();
                  var++) {
               auto newArg = (*var);
-              int pos = resultString.size() - 1;
-              resultString.insert(pos, newArg);
+              int pos = outputString.size() - 1;
+              outputString.insert(pos, newArg);
             }
           }
-          resultString.append(";\n");
+          outputString.append(";\n");
         } else {
           // we are interested in an argument of the function
           // find out which the argument is
-          auto argument = expr->getArg(result.testedValue.resultArg - 1);
+          auto argument = expr->getArg(output.testedValue.outputArg - 1);
           std::string stringArg;
           llvm::raw_string_ostream arg(stringArg);
           argument->printPretty(arg, 0, printingPolicy);
 
-          // assign the value of the argument after the call to the result
+          // assign the value of the argument after the call to theoutput 
           // struct
-          if (resultDecl.declaration.type.find("*")) {
+          if (outputDecl.declaration.type.find("*")) {
             // a pointer
             // TODO: Decide on the number of iterations
-            resultString.append("\nfor(int i = 0; i < 500; i++)");
-            resultString.append("{\n");
-            resultString.append("  *(result_gen->");
-            resultString.append(resultDecl.declaration.name);
-            resultString.append(" + i) = *(");
-            resultString.append(arg.str());
-            resultString.append(" + i);\n");
-            resultString.append("}\n");
+            outputString.append("\nfor(int i = 0; i < 500; i++)");
+            outputString.append("{\n");
+            outputString.append("  *(output_gen->");
+            outputString.append(outputDecl.declaration.name);
+            outputString.append(" + i) = *(");
+            outputString.append(arg.str());
+            outputString.append(" + i);\n");
+            outputString.append("}\n");
           } else {
             // not a pointer
-            resultString = "\nresult_gen->";
-            resultString.append(resultDecl.declaration.name);
-            resultString.append(" = ");
-            resultString.append(arg.str());
-            resultString.append(";\n");
+            outputString = "\noutput_gen->";
+            outputString.append(outputDecl.declaration.name);
+            outputString.append(" = ");
+            outputString.append(arg.str());
+            outputString.append(";\n");
           }
         }
       }
 
       auto callRange = expr->getSourceRange();
-      insertOnNewLineAfter(callRange, resultString, &rewriter);
+      insertOnNewLineAfter(callRange, outputString, &rewriter);
     }
   }
 };
@@ -1283,8 +1283,8 @@ class IncludesHandler : public MatchFinder::MatchCallback {
 public:
   IncludesHandler() {}
 
-  virtual void run(const MatchFinder::MatchResult &Result) {
-    const CallExpr *expr = Result.Nodes.getNodeAs<CallExpr>("includes");
+  virtual void run(const MatchFinder::MatchResult &Output) {
+    const CallExpr *expr = Output.Nodes.getNodeAs<CallExpr>("includes");
     auto funcName = expr->getDirectCallee()->getNameAsString();
 
     auto headerName = functionToHeaderFile.find(funcName);
@@ -1326,13 +1326,13 @@ private:
   GlobalVarUseHandler globalVarUseHandler;
   CalleeToCallerHandler calleeToCallerHandler;
   InputsHandler inputsHandler;
-  ResultsHandler resultsHandler;
-  InputsAndResultsAsParamsHandler inputsAndResultsAsParamsHandler;
-  InputsAndResultsAsArgsHandler inputsAndResultsAsArgsHandler;
+  OutputsHandler outputsHandler;
+  InputsAndOutputsAsParamsHandler inputsAndOutputsAsParamsHandler;
+  InputsAndOutputsAsArgsHandler inputsAndOutputsAsArgsHandler;
   GlobalVarsAsParamsHandler globalVarsAsParamsHandler;
   GlobalVarsAsArgsHandler globalVarsAsArgsHandler;
 
-  // result
+  //output 
   TestedValueFunctionCallHandler testedValueFunctionCallHandler;
 
   // main
@@ -1347,8 +1347,8 @@ public:
       : argvInAtoiHandler(R), argvHandler(R), stdinHandler(R), scanfHandler(R),
         commentOutHandler(R), variableLengthArraysHandler(R),
         globalVarHandler(R), globalVarUseHandler(R), calleeToCallerHandler(),
-        inputsHandler(), resultsHandler(), inputsAndResultsAsParamsHandler(R),
-        inputsAndResultsAsArgsHandler(R), globalVarsAsParamsHandler(R),
+        inputsHandler(), outputsHandler(), inputsAndOutputsAsParamsHandler(R),
+        inputsAndOutputsAsArgsHandler(R), globalVarsAsParamsHandler(R),
         globalVarsAsArgsHandler(R), testedValueFunctionCallHandler(R),
         mainHandler(R), returnInMainHandler(R), includesHandler() {
 
@@ -1367,7 +1367,7 @@ public:
     discoverGlobalVarsMatchFinder.addMatcher(calleeToCallerMatcher,
                                              &calleeToCallerHandler);
     discoverGlobalVarsMatchFinder.addMatcher(inputsMatcher, &inputsHandler);
-    discoverGlobalVarsMatchFinder.addMatcher(resultsMatcher, &resultsHandler);
+    discoverGlobalVarsMatchFinder.addMatcher(outputsMatcher, &outputsHandler);
     discoverGlobalVarsMatchFinder.addMatcher(stdinMatcher, &stdinHandler);
     discoverGlobalVarsMatchFinder.addMatcher(scanfMatcher, &scanfHandler);
 
@@ -1375,10 +1375,10 @@ public:
                                             &globalVarsAsParamsHandler);
     rewriteGlobalVarsMatchFinder.addMatcher(globalVarsAsArgsMatcher,
                                             &globalVarsAsArgsHandler);
-    rewriteGlobalVarsMatchFinder.addMatcher(inputsAndResultsAsParamsMatcher,
-                                            &inputsAndResultsAsParamsHandler);
-    rewriteGlobalVarsMatchFinder.addMatcher(inputsAndResultsAsArgsMatcher,
-                                            &inputsAndResultsAsArgsHandler);
+    rewriteGlobalVarsMatchFinder.addMatcher(inputsAndOutputsAsParamsMatcher,
+                                            &inputsAndOutputsAsParamsHandler);
+    rewriteGlobalVarsMatchFinder.addMatcher(inputsAndOutputsAsArgsMatcher,
+                                            &inputsAndOutputsAsArgsHandler);
 
     mainMatchFinder.addMatcher(testedValueFunctionCallMatcher,
                                &testedValueFunctionCallHandler);
@@ -1410,7 +1410,7 @@ private:
   Rewriter rewriter;
 
 public:
-  // Write results in a new file
+  // Write outputs in a new file
   void EndSourceFileAction() override {
 
     auto filename = getCurrentFile().rsplit('/').second;
@@ -1499,7 +1499,7 @@ void generateKernel(ClangTool *_tool, std::string outputDirectory,
                     std::map<int, std::string> _argvIdxToInput,
                     std::list<struct Declaration> _inputs,
                     std::list<struct Declaration> _stdinInputs,
-                    std::list<struct ResultDeclaration> _results) {
+                    std::list<struct OutputDeclaration> _outputs) {
   llvm::outs() << "Generating kernel code... ";
 
   // set global scope variables
@@ -1507,7 +1507,7 @@ void generateKernel(ClangTool *_tool, std::string outputDirectory,
   argvIdxToInput = _argvIdxToInput;
   inputs = _inputs;
   stdinInputs = _stdinInputs;
-  results = _results;
+  outputs = _outputs;
 
   // generate the kernel code
   Rewriter rewriter;

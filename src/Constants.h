@@ -27,7 +27,7 @@ const char *const RET = "RET";
 const char *const ARG = "ARG";
 const char *const INPUT = "input:";
 const char *const STDIN = "stdin:";
-const char *const RESULT = "result:";
+const char *const OUTPUT = "output:";
 const char *const INCLUDE = "include:";
 } // namespace config_constants
 
@@ -46,7 +46,7 @@ const int SUCCESS = 1;
 namespace structs_constants {
 const char *const ARGC = "argc";
 const char *const INPUT = "partecl_input";
-const char *const RESULT = "partecl_result";
+const char *const OUTPUT = "partecl_output";
 const char *const TEST_CASE_NUM = "test_case_num";
 const int POINTER_ARRAY_SIZE = 500;
 } // namespace structs_constants

@@ -58,7 +58,7 @@ int parseTestedValueFunction(const std::string &line, std::istringstream &iss,
   std::string returnType;
   iss >> returnType;
   if (returnType == config_constants::RET) {
-    testedValue.resultArg = -1;
+    testedValue.outputArg = -1;
   } else if (returnType == config_constants::ARG) {
     std::string argNumStr;
     iss >> argNumStr;
@@ -70,10 +70,10 @@ int parseTestedValueFunction(const std::string &line, std::istringstream &iss,
       return status_constants::FAIL;
     }
 
-    testedValue.resultArg = argNum;
+    testedValue.outputArg = argNum;
   } else {
     llvm::outs() << returnType
-                 << " is not a valid result in config file line:\n"
+                 << " is not a valid output in config file line:\n"
                  << line << "\nPlease enter std::RET or ARG.\n";
     return status_constants::FAIL;
   }
@@ -85,7 +85,7 @@ int parseTestedValueVariable(std::istringstream &iss,
                              struct TestedValue &testedValue) {
   testedValue.type = TestedValueType::variable;
   iss >> testedValue.name;
-  testedValue.resultArg = -1;
+  testedValue.outputArg = -1;
 
   return status_constants::SUCCESS;
 }
@@ -172,12 +172,12 @@ int parseStdin(const std::string &line, std::istringstream &iss,
   return status_constants::SUCCESS;
 }
 
-int parseResult(const std::string &line, std::istringstream &iss,
-                std::list<struct ResultDeclaration> &resultDeclarations) {
-  struct ResultDeclaration result;
-  parseType(line, iss, result.declaration);
+int parseOutput(const std::string &line, std::istringstream &iss,
+                std::list<struct OutputDeclaration> &outputDeclarations) {
+  struct OutputDeclaration output;
+  parseType(line, iss, output.declaration);
 
-  if (parseName(line, iss, result.declaration) == status_constants::FAIL)
+  if (parseName(line, iss, output.declaration) == status_constants::FAIL)
     return status_constants::FAIL;
 
   std::string annot;
@@ -185,14 +185,14 @@ int parseResult(const std::string &line, std::istringstream &iss,
 
   // parse the tested value as a function call
   if (annot == config_constants::FUNCTION) {
-    if (parseTestedValueFunction(line, iss, result.testedValue) ==
+    if (parseTestedValueFunction(line, iss, output.testedValue) ==
         status_constants::FAIL)
       return status_constants::FAIL;
   }
 
   // parse the tested value as a variable
   else if (annot == config_constants::VARIABLE) {
-    if (parseTestedValueVariable(iss, result.testedValue) ==
+    if (parseTestedValueVariable(iss, output.testedValue) ==
         status_constants::FAIL)
       return status_constants::FAIL;
   }
@@ -203,7 +203,7 @@ int parseResult(const std::string &line, std::istringstream &iss,
     return status_constants::FAIL;
   }
 
-  resultDeclarations.push_back(result);
+  outputDeclarations.push_back(output);
 
   return status_constants::SUCCESS;
 }
@@ -221,7 +221,7 @@ int parseConfig(const std::string &configFilename,
                 std::map<int, std::string> &argvIdxToInput,
                 std::list<struct Declaration> &stdinInputs,
                 std::list<struct Declaration> &inputDeclarations,
-                std::list<struct ResultDeclaration> &resultDeclarations,
+                std::list<struct OutputDeclaration> &outputDeclarations,
                 std::list<std::string> &includes) {
   llvm::outs() << "Parsing configuration file... ";
 
@@ -252,9 +252,9 @@ int parseConfig(const std::string &configFilename,
         return status_constants::FAIL;
     }
 
-    // parse results
-    else if (annot == config_constants::RESULT) {
-      if (parseResult(line, iss, resultDeclarations) == status_constants::FAIL)
+    // parse outputs
+    else if (annot == config_constants::OUTPUT) {
+      if (parseOutput(line, iss, outputDeclarations) == status_constants::FAIL)
         return status_constants::FAIL;
     }
 
