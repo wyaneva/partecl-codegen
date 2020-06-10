@@ -63,10 +63,11 @@ void generateStructs(
   for (auto &include : includes) {
     strFile << "#include \"" << include << "\"\n";
   }
-  strFile << "\n";
-  strFile << "typedef struct " << structs_constants::INPUT << "\n";
-  strFile << "{\n";
-  strFile << "  int " << structs_constants::TEST_ID<< ";\n";
+  if (includes.size() > 0) {
+    strFile << "\n";
+  }
+  strFile << "typedef struct " << structs_constants::INPUT << "{\n";
+  strFile << "  int " << structs_constants::TEST_ID << ";\n";
   strFile << "  int " << structs_constants::ARGC << ";\n";
 
   for (auto &inputDecl : inputDeclarations) {
@@ -80,8 +81,7 @@ void generateStructs(
   strFile << "} " << structs_constants::INPUT << ";\n\n";
 
   // write output 
-  strFile << "typedef struct " << structs_constants::OUTPUT << "\n";
-  strFile << "{\n";
+  strFile << "typedef struct " << structs_constants::OUTPUT << "{\n";
   strFile << "  int " << structs_constants::TEST_ID << ";\n";
   for (auto &outputDecl : outputDeclarations) {
     generateDeclaration(strFile, outputDecl.declaration);
