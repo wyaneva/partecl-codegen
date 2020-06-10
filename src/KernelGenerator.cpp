@@ -720,8 +720,8 @@ public:
                 << " *output_gen = &outputs[partecl_idx];\n";
     bbInsertion << "  int " << structs_constants::ARGC
                 << " = input_gen.argc;\n";
-    bbInsertion << "  output_gen->" << structs_constants::TEST_CASE_NUM
-                << " = input_gen." << structs_constants::TEST_CASE_NUM << ";\n";
+    bbInsertion << "  output_gen->" << structs_constants::TEST_ID
+                << " = input_gen." << structs_constants::TEST_ID << ";\n";
 
     // add declarations for global variables
     bbInsertion << "\n";

@@ -47,7 +47,7 @@ namespace structs_constants {
 const char *const ARGC = "argc";
 const char *const INPUT = "partecl_input";
 const char *const OUTPUT = "partecl_output";
-const char *const TEST_CASE_NUM = "test_case_num";
+const char *const TEST_ID = "test_id";
 const int POINTER_ARRAY_SIZE = 500;
 } // namespace structs_constants
 

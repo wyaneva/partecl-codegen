@@ -66,7 +66,7 @@ void generateStructs(
   strFile << "\n";
   strFile << "typedef struct " << structs_constants::INPUT << "\n";
   strFile << "{\n";
-  strFile << "  int " << structs_constants::TEST_CASE_NUM << ";\n";
+  strFile << "  int " << structs_constants::TEST_ID<< ";\n";
   strFile << "  int " << structs_constants::ARGC << ";\n";
 
   for (auto &inputDecl : inputDeclarations) {
@@ -82,7 +82,7 @@ void generateStructs(
   // write output 
   strFile << "typedef struct " << structs_constants::OUTPUT << "\n";
   strFile << "{\n";
-  strFile << "  int test_case_num;\n";
+  strFile << "  int " << structs_constants::TEST_ID << ";\n";
   for (auto &outputDecl : outputDeclarations) {
     generateDeclaration(strFile, outputDecl.declaration);
   }
@@ -101,7 +101,7 @@ void generateStructs(
 std::string generatePrintByTypeNonArray(const struct Declaration &declaration) {
   std::stringstream ss;
 
-  ss << "printf(\"TC %d: \", curout." << structs_constants::TEST_CASE_NUM
+  ss << "printf(\"TC %d: \", curout." << structs_constants::TEST_ID
      << ");\n";
 
   if (declaration.type == "int") {
@@ -164,7 +164,7 @@ std::string generatePrintArray(const struct Declaration &declaration) {
     size = "curout." + declaration.size;
 
   std::stringstream ss;
-  ss << "    printf(\"TC %d: \", curout." << structs_constants::TEST_CASE_NUM
+  ss << "    printf(\"TC %d: \", curout." << structs_constants::TEST_ID
      << ");\n";
   ss << "    for(int k = 0; k < " << size << "; k++)\n";
   ss << "    {\n";
@@ -190,9 +190,9 @@ void generateCompareOutputs(
     const std::list<struct OutputDeclaration> &outputDecls) {
   strFile << "void compare_outputs(struct " << structs_constants::OUTPUT
           << "* outputs, struct " << structs_constants::OUTPUT
-          << "* exp_outputs, int num_test_cases)\n";
+          << "* exp_outputs, int num_tests)\n";
   strFile << "{\n";
-  strFile << "  for(int i = 0; i < num_test_cases; i++)\n";
+  strFile << "  for(int i = 0; i < num_tests; i++)\n";
   strFile << "  {\n";
   strFile << "    struct " << structs_constants::OUTPUT
           << " curout = outputs[i];\n";
@@ -267,7 +267,7 @@ void generatePopulateInputs(std::ofstream &strFile,
           << " *input, int argc, char** args, int stdinc, char** stdins)\n";
   strFile << "{\n";
 
-  strFile << "  input->" << structs_constants::TEST_CASE_NUM
+  strFile << "  input->" << structs_constants::TEST_ID
           << " = atoi(args[0]);\n";
   strFile << "  input->" << structs_constants::ARGC << " = argc;\n";
 
