@@ -52,7 +52,7 @@ const int POINTER_ARRAY_SIZE = 500;
 } // namespace structs_constants
 
 namespace kernel_gen_constants {
-const char *const TEST_IDX= "partecl_testidx";
+const char *const THREAD_IDX= "partecl_threadidx";
 const char *const TEST_INPUT = "partecl_testin";
 const char *const TEST_OUTPUT = "partecl_testout";
 const char *const TEST_INPUTS = "partecl_testins";
