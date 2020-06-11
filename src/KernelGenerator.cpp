@@ -260,15 +260,9 @@ void addAssignmentForArrayTestInputs(const struct Declaration &input,
     if (input.isConst)
       bbInsertion << "const ";
     bbInsertion << input.type << " *" << input.name << ";\n";
-    bbInsertion << "  " << input.name << " = input_gen." << input.name << ";\n";
-    /*
-    bbInsertion << input.type << " " << input.name << "[" << input.size <<
-    "];\n"; bbInsertion << "  for(int i = 0; i < " << input.size << "; i++)\n";
-    bbInsertion << "  {\n";
-    bbInsertion << "    " << input.name << "[i] = input_gen." << input.name <<
-    "[i];\n"; bbInsertion << "  }\n";
-    */
-
+    bbInsertion << "  " << input.name << " = "
+                << kernel_gen_constants::TEST_INPUT << "." << input.name
+                << ";\n";
     inputsToIsAddedDeclaration[input.name] = true;
   }
 }
@@ -492,7 +486,8 @@ public:
             Output.Nodes.getNodeAs<clang::ArraySubscriptExpr>("argvArray")) {
       // This reference to argv is not in a atoi call
       if (!argvIdxToIsReplaced[expr->getIdx()]) {
-        std::string text = "input_gen.";
+        std::string text = kernel_gen_constants::TEST_INPUT;
+        text.append(".");
         if (getInputParamFromArgvIndex(expr, &text)) {
           SourceRange range = expr->getSourceRange();
           int length = rewriter.getRangeSize(range);
@@ -526,7 +521,8 @@ public:
     bool shouldReplace = true;
 
     // Get the input parameter to match
-    std::string newText = "input_gen.";
+    std::string newText = kernel_gen_constants::TEST_INPUT;
+    newText.append(".");
 
     if (const ArraySubscriptExpr *expr =
             Output.Nodes.getNodeAs<ArraySubscriptExpr>("argvArray")) {
@@ -589,8 +585,7 @@ public:
 auto stdinMatcher =
     callExpr(hasAncestor(functionDecl().bind("stdinCaller")),
              hasAnyArgument(ignoringImpCasts(
-                 declRefExpr(to(varDecl(hasName("stdin")))).bind("stdinArg")))
-             )
+                 declRefExpr(to(varDecl(hasName("stdin")))).bind("stdinArg"))))
         .bind("stdin");
 class StdinHandler : public MatchFinder::MatchCallback {
 private:
@@ -621,10 +616,11 @@ public:
 
     stdinInputs.pop_front();
     std::string inputRef;
+    inputRef.append(kernel_gen_constants::TEST_INPUT);
     if (isMain(caller))
-      inputRef.append("input_gen.");
+      inputRef.append(".");
     else
-      inputRef.append("input_gen->");
+      inputRef.append("->");
 
     inputRef.append(stdinInput->name);
     replaceArgument(stdinCallExpr, stdinArgExpr, inputRef, &rewriter);
@@ -659,11 +655,12 @@ public:
     }
 
     stdinInputs.pop_front();
-    std::string inputRef;
+    std::string inputRef = "&";
+    inputRef.append(kernel_gen_constants::TEST_INPUT);
     if (isMain(caller))
-      inputRef.append("&input_gen.");
+      inputRef.append(".");
     else
-      inputRef.append("&input_gen->");
+      inputRef.append("->");
 
     inputRef.append(stdinInput->name);
     addNewArgument(stdinCallExpr, inputRef, &rewriter);
@@ -696,12 +693,14 @@ public:
     // change argument list
     const ParmVarDecl *paramDeclArgc = decl->getParamDecl(0);
     std::stringstream ssinput;
-    ssinput << "__global struct " << structs_constants::INPUT << "* inputs";
+    ssinput << "__global struct " << structs_constants::INPUT << "* "
+            << kernel_gen_constants::TEST_INPUTS;
     replaceParam(paramDeclArgc, ssinput.str(), &rewriter);
 
     const ParmVarDecl *paramDeclArgv = decl->getParamDecl(1);
     std::stringstream ssoutput;
-    ssoutput << "__global struct " << structs_constants::OUTPUT << "* outputs";
+    ssoutput << "__global struct " << structs_constants::OUTPUT << "* "
+             << kernel_gen_constants::TEST_OUTPUTS;
     replaceParam(paramDeclArgv, ssoutput.str(), &rewriter);
 
     // add variables at the beginning of body
@@ -713,15 +712,23 @@ public:
     std::stringstream eInsertion;
 
     // append idx, input, argc and outputs lines
-    bbInsertion << "\n  int partecl_idx = get_global_id(0);\n";
-    bbInsertion << "  struct " << structs_constants::INPUT
-                << " input_gen = inputs[partecl_idx];\n";
-    bbInsertion << "  __global struct " << structs_constants::OUTPUT
-                << " *output_gen = &outputs[partecl_idx];\n";
-    bbInsertion << "  int " << structs_constants::ARGC
-                << " = input_gen.argc;\n";
-    bbInsertion << "  output_gen->" << structs_constants::TEST_ID
-                << " = input_gen." << structs_constants::TEST_ID << ";\n";
+    bbInsertion << "\n  int " << kernel_gen_constants::TEST_IDX
+                << " = get_global_id(0);\n";
+    bbInsertion << "  struct " << structs_constants::INPUT << " "
+                << kernel_gen_constants::TEST_INPUT << " = "
+                << kernel_gen_constants::TEST_INPUTS << "["
+                << kernel_gen_constants::TEST_IDX << "];\n";
+    bbInsertion << "  __global struct " << structs_constants::OUTPUT << " *"
+                << kernel_gen_constants::TEST_OUTPUT << " = &"
+                << kernel_gen_constants::TEST_OUTPUTS << "["
+                << kernel_gen_constants::TEST_IDX << "];\n";
+    bbInsertion << "  int " << structs_constants::ARGC << " = "
+                << kernel_gen_constants::TEST_INPUT << "."
+                << structs_constants::ARGC << ";\n";
+    bbInsertion << "  " << kernel_gen_constants::TEST_OUTPUT << "->"
+                << structs_constants::TEST_ID << " = "
+                << kernel_gen_constants::TEST_INPUT << "."
+                << structs_constants::TEST_ID << ";\n";
 
     // add declarations for global variables
     bbInsertion << "\n";
@@ -763,11 +770,12 @@ public:
 
       // character termination in case output is printed char by char
       if (isOutputPrintedChatByChar(output)) {
-        eInsertion << "  *(output_gen->" << output.declaration.name
+        eInsertion << "  *(" << kernel_gen_constants::TEST_OUTPUT << "->"
+                   << output.declaration.name
                    << " + out_count_gen) = \'\\0\';\n";
       }
 
-      // when the tested value is a variable, add an assignment to theoutput 
+      // when the tested value is a variable, add an assignment to theoutput
       // struct
       if (output.testedValue.type == TestedValueType::variable) {
         if (output.declaration.isArray) {
@@ -775,14 +783,14 @@ public:
           eInsertion << output.declaration.size;
           eInsertion << "; i++)\n";
           eInsertion << "  {\n";
-          eInsertion << "    output_gen->";
+          eInsertion << "    " << kernel_gen_constants::TEST_OUTPUT << "->";
           eInsertion << output.declaration.name;
           eInsertion << "[i] = ";
           eInsertion << output.testedValue.name;
           eInsertion << "[i];\n";
           eInsertion << "  }\n";
         } else {
-          eInsertion << "  output_gen->";
+          eInsertion << "  " << kernel_gen_constants::TEST_OUTPUT << "->";
           eInsertion << output.declaration.name;
           eInsertion << " = ";
           eInsertion << output.testedValue.name;
@@ -838,7 +846,8 @@ public:
 
 // find variable length arrays
 // turn them into constant length arrays
-auto variableLengthArraysMatcher = varDecl(hasType(variableArrayType().bind("variableLengthArrayType")));
+auto variableLengthArraysMatcher =
+    varDecl(hasType(variableArrayType().bind("variableLengthArrayType")));
 class VariableLengthArraysHandler : public MatchFinder::MatchCallback {
 private:
   Rewriter &rewriter;
@@ -1079,7 +1088,8 @@ public:
       std::string newParam;
       newParam.append("struct ");
       newParam.append(structs_constants::INPUT);
-      newParam.append(" *input_gen");
+      newParam.append(" *");
+      newParam.append(kernel_gen_constants::TEST_INPUT);
       addNewParam(decl, newParam, &rewriter);
     }
 
@@ -1088,7 +1098,8 @@ public:
       std::string newParam;
       newParam.append("__global struct");
       newParam.append(structs_constants::OUTPUT);
-      newParam.append(" *output_gen");
+      newParam.append(" *");
+      newParam.append(kernel_gen_constants::TEST_OUTPUT);
       addNewParam(decl, newParam, &rewriter);
 
       // if the output is printed char by char, add a pointer to the counter
@@ -1134,14 +1145,14 @@ public:
       if (isMain(caller)) {
         newArg.append("&");
       }
-      newArg.append("input_gen");
+      newArg.append(kernel_gen_constants::TEST_INPUT);
       addNewArgument(call, newArg, &rewriter);
     }
 
     if (containsRefToOutput(funcDecl)) {
       // no need to add '&' in main, as output is a pointer
       std::string newArg;
-      newArg.append("output_gen");
+      newArg.append(kernel_gen_constants::TEST_OUTPUT);
       addNewArgument(call, newArg, &rewriter);
 
       // if the output is printed char by char, add a pointer to the counter
@@ -1203,7 +1214,9 @@ public:
         llvm::raw_string_ostream s(stringExpr);
         expr->getArg(0)->printPretty(s, 0, printingPolicy);
 
-        outputString.append("*(output_gen->");
+        outputString.append("*(");
+        outputString.append(kernel_gen_constants::TEST_OUTPUT);
+        outputString.append("->");
         outputString.append(outputDecl.declaration.name);
         outputString.append(" + *out_count_gen) = ");
         outputString.append(s.str());
@@ -1216,13 +1229,15 @@ public:
       else {
         // user defined function
         if (output.testedValue.outputArg <= 0) {
-          // we are interested in the returnoutput 
+          // we are interested in the returnoutput
           std::string callString;
           llvm::raw_string_ostream s(callString);
           expr->printPretty(s, 0, printingPolicy);
 
           // TODO: read outputs from test-params
-          outputString = "\noutput_gen->";
+          outputString = "\n";
+          outputString.append(kernel_gen_constants::TEST_OUTPUT);
+          outputString.append("->");
           outputString.append(outputDecl.declaration.name);
           outputString.append(" = ");
           outputString.append(s.str());
@@ -1248,14 +1263,18 @@ public:
           llvm::raw_string_ostream arg(stringArg);
           argument->printPretty(arg, 0, printingPolicy);
 
-          // assign the value of the argument after the call to theoutput 
+          // assign the value of the argument after the call to theoutput
           // struct
           if (outputDecl.declaration.type.find("*")) {
             // a pointer
             // TODO: Decide on the number of iterations
-            outputString.append("\nfor(int i = 0; i < 500; i++)");
+            outputString.append("\nfor(int i = 0; i < ");
+            outputString.append(std::to_string(structs_constants::POINTER_ARRAY_SIZE));
+            outputString.append("; i++)");
             outputString.append("{\n");
-            outputString.append("  *(output_gen->");
+            outputString.append("  *(");
+            outputString.append(kernel_gen_constants::TEST_OUTPUT);
+            outputString.append("->");
             outputString.append(outputDecl.declaration.name);
             outputString.append(" + i) = *(");
             outputString.append(arg.str());
@@ -1263,7 +1282,9 @@ public:
             outputString.append("}\n");
           } else {
             // not a pointer
-            outputString = "\noutput_gen->";
+            outputString = "\n";
+            outputString.append(kernel_gen_constants::TEST_OUTPUT);
+            outputString.append("->");
             outputString.append(outputDecl.declaration.name);
             outputString.append(" = ");
             outputString.append(arg.str());
@@ -1332,7 +1353,7 @@ private:
   GlobalVarsAsParamsHandler globalVarsAsParamsHandler;
   GlobalVarsAsArgsHandler globalVarsAsArgsHandler;
 
-  //output 
+  // output
   TestedValueFunctionCallHandler testedValueFunctionCallHandler;
 
   // main
