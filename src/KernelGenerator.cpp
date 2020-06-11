@@ -712,7 +712,7 @@ public:
     std::stringstream eInsertion;
 
     // append idx, input, argc and outputs lines
-    bbInsertion << "\n  int " << kernel_gen_constants::TEST_IDX
+    bbInsertion << "\n\n  int " << kernel_gen_constants::TEST_IDX
                 << " = get_global_id(0);\n";
     bbInsertion << "  struct " << structs_constants::INPUT << " "
                 << kernel_gen_constants::TEST_INPUT << " = "
