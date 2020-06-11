@@ -264,24 +264,24 @@ void generatePopulateInputs(std::ofstream &strFile,
                             const std::list<struct Declaration> &inputDecls,
                             const std::list<struct Declaration> &stdinInputs) {
   strFile << "void populate_inputs(struct " << structs_constants::INPUT
-          << " *input, int argc, char** args, int stdinc, char** stdins)\n";
+          << " *input, int num_values, char** values)\n";
   strFile << "{\n";
 
   strFile << "  input->" << structs_constants::TEST_ID
-          << " = atoi(args[0]);\n";
-  strFile << "  input->" << structs_constants::ARGC << " = argc;\n";
+          << " = atoi(values[0]);\n";
+
+  auto num_values = inputDecls.size() + stdinInputs.size();
+  strFile << "  input->" << structs_constants::ARGC << " = "
+          << inputDecls.size() + 1 << ";\n";
 
   int i = -1; // command line args start from index 1
   for (auto &input : inputDecls) {
     i++;
-
-    generatePopulateInput(strFile, input, "argc", "args", i);
+    generatePopulateInput(strFile, input, "num_values", "values", i);
   }
-
-  i = -2; // stdin args start from index 0
   for (auto &stdinArg : stdinInputs) {
     i++;
-    generatePopulateInput(strFile, stdinArg, "stdinc", "stdins", i);
+    generatePopulateInput(strFile, stdinArg, "num_values", "values", i);
   }
 
   strFile << "}\n";
@@ -303,7 +303,7 @@ void generateCpuGen(const std::string &outputDirectory,
   headerFile << "#define CPU_GEN_H\n";
   headerFile << "#include \"structs.h\"\n\n";
   headerFile << "void populate_inputs(struct " << structs_constants::INPUT
-             << "*, int, char**, int, char**);\n\n";
+             << "*, int, char**);\n\n";
   headerFile << "void compare_outputs(struct " << structs_constants::OUTPUT
              << "*, struct " << structs_constants::OUTPUT << "*, int);\n\n";
   headerFile << "#endif\n";

@@ -100,10 +100,10 @@ Below is the full list of configuration options and how they are used.
 
 ### Declaring of arrays
 
-The user can specify array inputs and outputs using a constant or variable lenght.
+The user can specify array inputs and outputs using a constant or variable length.
 For example, they can specify `output: int array[10] variable: sum` or `output: int array[lenght] variable: output_array`.
 
-When they use variable lenght, that variable should also be declared in the input/output.
+When they use variable length, that variable should also be declared in the input/output.
 For example,
 
 `output: int array[length] variable: output_array`
