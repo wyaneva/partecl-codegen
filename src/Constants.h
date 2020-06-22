@@ -48,7 +48,7 @@ const char *const ARGC = "argc";
 const char *const INPUT = "partecl_input";
 const char *const OUTPUT = "partecl_output";
 const char *const TEST_ID = "test_id";
-const int POINTER_ARRAY_SIZE = 500;
+const int POINTER_ARRAY_SIZE = 1024;
 } // namespace structs_constants
 
 namespace kernel_gen_constants {
