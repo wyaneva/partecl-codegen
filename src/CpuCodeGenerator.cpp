@@ -17,8 +17,20 @@
 #include "CpuCodeGenerator.h"
 #include "Constants.h"
 #include "Utils.h"
+#include <algorithm>
+#include <cctype>
 #include <sstream>
 #include <string>
+
+bool string_is_numeric(const std::string &str) {
+  return find_if(str.begin(), str.end(), isdigit) == str.end();
+}
+
+bool is_valid_char(char c) { return std::isupper(c) || c == '_' || c == '-'; }
+
+bool string_is_capital(const std::string &str) {
+  return find_if(str.begin(), str.end(), is_valid_char) == str.end();
+}
 
 /*
  * Gnerate structs.h
@@ -28,11 +40,13 @@ void generateDeclaration(std::ofstream &strFile,
 
   std::string type = declaration.type;
   std::stringstream size;
-  // if the size is not a numeric string, then hardcode it
-  if (declaration.size.find_first_not_of("0123456789") != std::string::npos)
+  // if the size is not a numeric string or compiler DEFINE, then hardcode it
+  if (!string_is_numeric(declaration.size) &&
+      !string_is_capital(declaration.size)) {
     size << structs_constants::POINTER_ARRAY_SIZE;
-  else
+  } else {
     size << declaration.size;
+  }
 
   if (declaration.isPointer) { // add the star to delcaraiont
     strFile << "  " << type << "* " << declaration.name << ";\n";
@@ -80,13 +94,13 @@ void generateStructs(
 
   strFile << "} " << structs_constants::INPUT << ";\n\n";
 
-  // write output 
+  // write output
   strFile << "typedef struct " << structs_constants::OUTPUT << "{\n";
   strFile << "  int " << structs_constants::TEST_ID << ";\n";
   for (auto &outputDecl : outputDeclarations) {
     generateDeclaration(strFile, outputDecl.declaration);
   }
-  strFile << "} " << structs_constants::OUTPUT<< ";\n\n";
+  strFile << "} " << structs_constants::OUTPUT << ";\n\n";
 
   strFile << "#endif\n";
   strFile.close();
@@ -101,8 +115,7 @@ void generateStructs(
 std::string generatePrintByTypeNonArray(const struct Declaration &declaration) {
   std::stringstream ss;
 
-  ss << "printf(\"TC %d: \", curout." << structs_constants::TEST_ID
-     << ");\n";
+  ss << "printf(\"TC %d: \", curout." << structs_constants::TEST_ID << ");\n";
 
   if (declaration.type == "int") {
 
@@ -114,7 +127,7 @@ std::string generatePrintByTypeNonArray(const struct Declaration &declaration) {
 
   } else {
 
-  // TODO: Handle other types; currently default to int
+    // TODO: Handle other types; currently default to int
 #if ENABLE_WARNINGS
     llvm::outs() << "\ngenerateCompareOutputs: I don't know how to print "
                     "outputs of type '"
@@ -140,7 +153,7 @@ std::string generatePrintByTypeArray(const struct Declaration &declaration) {
     ss << "      printf(\"%c \", curel);\n";
 
   } else {
-  // TODO: Handle other types; currently default to int
+    // TODO: Handle other types; currently default to int
 #if ENABLE_WARNINGS
     llvm::outs() << "\ngenerateCompareOutputs: I don't know how to print "
                     "outputs of type '"
@@ -158,10 +171,12 @@ std::string generatePrintArray(const struct Declaration &declaration) {
 
   std::string size = declaration.size;
 
-  // if the size is not a numeric string, then it must be a member of the output 
+  // if the size is not a numeric string, then it must be a member of the output
   // struct
-  if (declaration.size.find_first_not_of("0123456789") != std::string::npos)
+  if (!string_is_numeric(declaration.size) &&
+      !string_is_capital(declaration.size)) {
     size = "curout." + declaration.size;
+  }
 
   std::stringstream ss;
   ss << "    printf(\"TC %d: \", curout." << structs_constants::TEST_ID
@@ -212,11 +227,13 @@ void generatePopulateInput(std::ofstream &strFile, struct Declaration input,
   // for arrays, add a loop and indexes
   if (input.isArray) {
     std::stringstream size;
-    // if the size is not a numeric string, then make it a variable name
-    if (input.size.find_first_not_of("0123456789") != std::string::npos)
+    // if the size is not a numeric string or DEFINE constant, then make it a
+    // variable name
+    if (!string_is_numeric(input.size) && !string_is_capital(input.size)) {
       size << "input->" << input.size;
-    else
+    } else {
       size << input.size;
+    }
 
     strFile << "  for(int i = 0; i < " << size.str() << "; i++)\n";
     name.append("[i]");
@@ -270,7 +287,6 @@ void generatePopulateInputs(std::ofstream &strFile,
   strFile << "  input->" << structs_constants::TEST_ID
           << " = atoi(values[0]);\n";
 
-  auto num_values = inputDecls.size() + stdinInputs.size();
   strFile << "  input->" << structs_constants::ARGC << " = "
           << inputDecls.size() + 1 << ";\n";
 
