@@ -249,7 +249,7 @@ void generatePopulateInput(std::ofstream &strFile, struct Declaration input,
   if (input.isPointer) {
     strFile << "    int len = strlen(" << container << "[" << argsidx << "]);\n"
             << "    input->" << name
-            << " = (char *)malloc(sizeof(char *)*len);\n"
+            << " = (char *)malloc(sizeof(char)*len + 1);\n"
             << "    strcpy(input->" << name << ", " << container << "["
             << argsidx << "]);\n";
     // not pointers
