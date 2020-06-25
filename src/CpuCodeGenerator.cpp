@@ -23,13 +23,13 @@
 #include <string>
 
 bool string_is_numeric(const std::string &str) {
-  return find_if(str.begin(), str.end(), isdigit) == str.end();
+  return all_of(str.begin(), str.end(), isdigit);
 }
 
 bool is_valid_char(char c) { return std::isupper(c) || c == '_' || c == '-'; }
 
 bool string_is_capital(const std::string &str) {
-  return find_if(str.begin(), str.end(), is_valid_char) == str.end();
+  return all_of(str.begin(), str.end(), is_valid_char);
 }
 
 /*
