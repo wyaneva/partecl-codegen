@@ -600,14 +600,13 @@ public:
 
   virtual void run(const MatchFinder::MatchResult &Output) {
     const CallExpr *stdinCallExpr = Output.Nodes.getNodeAs<CallExpr>("stdin");
-    const FunctionDecl *functionDecl = stdinCallExpr->getDirectCallee();
     const DeclRefExpr *stdinArgExpr =
         Output.Nodes.getNodeAs<DeclRefExpr>("stdinArg");
     const FunctionDecl *caller =
         Output.Nodes.getNodeAs<FunctionDecl>("stdinCaller");
 
     // add function in the list of functions
-    functionsWhichUseStdin.push_back(functionDecl);
+    functionsWhichUseStdin.push_back(caller);
 
     // replace stdin with a reference to the input
     if (stdinInputs.empty()) {
@@ -619,8 +618,7 @@ public:
     auto stdinInput = stdinInputs.front();
     stdinInputs.pop_front();
     stdinInputs.push_back(stdinInput);
-    std::string inputRef;
-    inputRef.append(getStdinNamePtr(stdinInput.name));
+    std::string inputRef = getStdinNamePtr(stdinInput.name);
     replaceArgument(stdinCallExpr, stdinArgExpr, inputRef, &rewriter);
   }
 };
@@ -637,12 +635,11 @@ public:
 
   virtual void run(const MatchFinder::MatchResult &Output) {
     const CallExpr *stdinCallExpr = Output.Nodes.getNodeAs<CallExpr>("scanf");
-    const FunctionDecl *functionDecl = stdinCallExpr->getDirectCallee();
     const FunctionDecl *caller =
         Output.Nodes.getNodeAs<FunctionDecl>("scanfCaller");
 
     // add function in the list of functions
-    functionsWhichUseStdin.push_back(functionDecl);
+    functionsWhichUseStdin.push_back(caller);
 
     // stdin argument to the call of scanf
     if(stdinInputs.empty()) {
@@ -1111,6 +1108,15 @@ public:
         }
       }
     }
+
+    if(containsRefToStdin(decl)) {
+      for (auto &stdinInput : stdinInputs) {
+        std::string newParam;
+        newParam.append("char *");
+        newParam.append(getStdinNamePtr(stdinInput.name));
+        addNewParam(decl, newParam, &rewriter);
+      }
+    }
   }
 };
 
@@ -1164,6 +1170,13 @@ public:
           newArg2.append("out_count_gen");
           addNewArgument(call, newArg2, &rewriter);
         }
+      }
+    }
+
+    if(containsRefToStdin(funcDecl)) {
+      for (auto &stdinInput : stdinInputs) {
+        std::string newArg = getStdinNamePtr(stdinInput.name);
+        addNewArgument(call, newArg, &rewriter);
       }
     }
   }
