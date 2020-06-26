@@ -468,6 +468,10 @@ void subtractOneIfArgvInput(const ArraySubscriptExpr *expr,
   rewriter.ReplaceText(arrayLoc, length, newIndex.str());
 }
 
+std::string getStdinNamePtr(const std::string name) {
+  return "partecl_" + name + "ptr";
+}
+
 /* AST Matchers & Handlers */
 StatementMatcher argvMatcher =
     arraySubscriptExpr(
@@ -606,23 +610,17 @@ public:
     functionsWhichUseStdin.push_back(functionDecl);
 
     // replace stdin with a reference to the input
-    // pick the name of the stdin var from test-params
-    auto stdinInput = stdinInputs.begin();
-    if (stdinInput == stdinInputs.end()) {
+    if (stdinInputs.empty()) {
       llvm::outs() << "There are fewer stdin parameters supplied than there "
                       "are references to stdin in the code.\n";
       return;
     }
 
+    auto stdinInput = stdinInputs.front();
     stdinInputs.pop_front();
+    stdinInputs.push_back(stdinInput);
     std::string inputRef;
-    inputRef.append(kernel_gen_constants::TEST_INPUT);
-    if (isMain(caller))
-      inputRef.append(".");
-    else
-      inputRef.append("->");
-
-    inputRef.append(stdinInput->name);
+    inputRef.append(getStdinNamePtr(stdinInput.name));
     replaceArgument(stdinCallExpr, stdinArgExpr, inputRef, &rewriter);
   }
 };
@@ -647,22 +645,17 @@ public:
     functionsWhichUseStdin.push_back(functionDecl);
 
     // stdin argument to the call of scanf
-    auto stdinInput = stdinInputs.begin();
-    if (stdinInput == stdinInputs.end()) {
+    if(stdinInputs.empty()) {
       llvm::outs() << "There are fewer stdin parameters supplied than there "
                       "are references to stdin in the code.\n";
       return;
     }
 
+    auto stdinInput = stdinInputs.front();
     stdinInputs.pop_front();
+    stdinInputs.push_back(stdinInput);
     std::string inputRef = "&";
-    inputRef.append(kernel_gen_constants::TEST_INPUT);
-    if (isMain(caller))
-      inputRef.append(".");
-    else
-      inputRef.append("->");
-
-    inputRef.append(stdinInput->name);
+    inputRef.append(getStdinNamePtr(stdinInput.name));
     addNewArgument(stdinCallExpr, inputRef, &rewriter);
   }
 };
@@ -730,8 +723,14 @@ public:
                 << kernel_gen_constants::TEST_INPUT << "."
                 << structs_constants::TEST_ID << ";\n";
 
+    // add declaration for stdin pointers
+    for (auto &stdinInput : stdinInputs) {
+      bbInsertion << "  char* " << getStdinNamePtr(stdinInput.name) << " = "
+                  << kernel_gen_constants::TEST_INPUT << "." << stdinInput.name
+                  << ";\n";
+    }
+
     // add declarations for global variables
-    bbInsertion << "\n";
     for (auto &globalVar : globalVars) {
       // this is not a test input or it is one which isn't an array
       struct Declaration inputRef;
