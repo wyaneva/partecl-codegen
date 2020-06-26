@@ -41,16 +41,14 @@ void generateDeclaration(std::ofstream &strFile,
   std::string type = declaration.type;
   std::stringstream size;
   // if the size is not a numeric string or compiler DEFINE, then hardcode it
-  if (!string_is_numeric(declaration.size) &&
-      !string_is_capital(declaration.size)) {
+  if (declaration.size.empty() || (!string_is_numeric(declaration.size) &&
+                                   !string_is_capital(declaration.size))) {
     size << structs_constants::POINTER_ARRAY_SIZE;
   } else {
     size << declaration.size;
   }
 
-  if (declaration.isPointer) { // add the star to delcaraiont
-    strFile << "  " << type << "* " << declaration.name << ";\n";
-  } else if (declaration.isArray) {
+  if (declaration.isArray || declaration.isPointer) {
     strFile << "  " << type << " " << declaration.name << "[" << size.str()
             << "];\n";
   } else {
@@ -248,10 +246,16 @@ void generatePopulateInput(std::ofstream &strFile, struct Declaration input,
   // TODO: add handling for pointers which are not 'char *'
   if (input.isPointer) {
     strFile << "    int len = strlen(" << container << "[" << argsidx << "]);\n"
-            << "    input->" << name
-            << " = (char *)malloc(sizeof(char)*(len + 1));\n"
-            << "    strcpy(input->" << name << ", " << container << "["
-            << argsidx << "]);\n";
+            << "    int iters = len <= "
+            << structs_constants::POINTER_ARRAY_SIZE
+            << "-1 ? len : " << structs_constants::POINTER_ARRAY_SIZE << "-1;\n"
+            << "    int i = 0;\n"
+            << "    for(i = 0; i < iters; i++) {\n"
+            << "      input->" << name << "[i] = " << container << "["
+            << argsidx << "][i];\n"
+            << "    }\n"
+            << "    input->" << name << "[i] = \'\\0\';\n";
+
     // not pointers
   } else if (contains(input.type, "int")) {
     strFile << "    input->" << name << " = "
